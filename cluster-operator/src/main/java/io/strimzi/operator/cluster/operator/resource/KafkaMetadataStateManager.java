@@ -10,8 +10,15 @@ import io.strimzi.api.kafka.model.kafka.KafkaStatus;
 import io.strimzi.operator.common.Annotations;
 import io.strimzi.operator.common.Reconciliation;
 import io.strimzi.operator.common.ReconciliationLogger;
+import io.strimzi.operator.common.Util;
+import io.strimzi.operator.common.model.Ca;
+import io.strimzi.operator.common.model.PasswordGenerator;
 import io.strimzi.operator.common.model.StatusUtils;
+import org.apache.zookeeper.admin.ZooKeeperAdmin;
+import org.apache.zookeeper.client.ZKClientConfig;
 
+import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 /**
@@ -92,6 +99,7 @@ public class KafkaMetadataStateManager {
             case KRaftMigration -> onKRaftMigration(kafkaStatus);
             case KRaftDualWriting -> onKRaftDualWriting(kafkaStatus);
             case KRaftPostMigration -> onKRaftPostMigration(kafkaStatus);
+            case KRaftRollbackMigration -> onKRaftRollbackMigration(kafkaStatus);
         };
         LOGGER.infoCr(reconciliation, "from [{}] to [{}] with strimzi.io/kraft: [{}]", currentState, metadataState, kraftAnno);
         return metadataState;
@@ -119,13 +127,15 @@ public class KafkaMetadataStateManager {
                     // ZooKeeper configured and migration enabled on both controllers and brokers
                     return KafkaMetadataConfigurationState.MIGRATION;
                 } else {
-                    return KafkaMetadataConfigurationState.ZK;
+                    return KafkaMetadataConfigurationState.PRE_MIGRATION;
+                    //return KafkaMetadataConfigurationState.ZK;
                 }
             }
             case KRaftDualWriting -> {
                 if (isKRaftDisabled()) {
                     // ZooKeeper rolled back on brokers
-                    return KafkaMetadataConfigurationState.ZK;
+                    return KafkaMetadataConfigurationState.PRE_MIGRATION;
+                    //return KafkaMetadataConfigurationState.ZK;
                 } else if (isKRaftMigration()) {
                     // ZooKeeper configured and migration enabled on both controllers and brokers
                     return KafkaMetadataConfigurationState.MIGRATION;
@@ -144,6 +154,15 @@ public class KafkaMetadataStateManager {
             }
             case KRaft -> {
                 return KafkaMetadataConfigurationState.KRAFT;
+            }
+            case KRaftRollbackMigration -> {
+                if (isKRaftDisabled()) {
+                    // ZooKeeper rolled back on brokers
+                    return KafkaMetadataConfigurationState.ZK;
+                } else {
+                    // cancelled rollback ?? // TODO: does it really work if user changes their mind
+                    return KafkaMetadataConfigurationState.MIGRATION;
+                }
             }
         }
         // this should never happen
@@ -168,6 +187,74 @@ public class KafkaMetadataStateManager {
             throw new RuntimeException("Failed to get the ZooKeeper to KRaft migration state");
         }
         this.isMigrationDone = kraftMigrationState.isMigrationDone();
+    }
+
+    // TODO: to be removed if we leave the way to finalize rollback by removing the /controller znode manually
+    /**
+     * If the KRaft migration process is in the rollback phase, this method deletes the /controller znode from ZooKeeper
+     * to allow the brokers, which are now in ZooKeeper mode again, to elect a new controller among them taking the
+     * KRaft controllers out of the picture
+     *
+     * @param reconciliation    Reconciliation information
+     * @param clusterCaCertSecret   Secret with the Cluster CA public key
+     * @param coKeySecret   Secret with the Cluster CA private key
+     * @param operationTimeoutMs    Timeout to be set on the ZooKeeper request configuration
+     * @param zkConnectionString    Connection string to the ZooKeeper ensemble to connect to
+     */
+    public void maybeDeleteZooKeeperControllerZnode(Reconciliation reconciliation, Secret clusterCaCertSecret, Secret coKeySecret, long operationTimeoutMs, String zkConnectionString) {
+        if (metadataState.equals(KafkaMetadataState.KRaftRollbackMigration) && isKRaftDisabled()) {
+            LOGGER.infoCr(reconciliation, "KRaft migration rollback ... going to delete /controller znode");
+            // Setup truststore from PEM file in cluster CA secret
+            // We cannot use P12 because of custom CAs which for simplicity provide only PEM
+            PasswordGenerator pg = new PasswordGenerator(12);
+            String trustStorePassword = pg.generate();
+            File trustStoreFile = Util.createFileTrustStore(getClass().getName(), "p12", Ca.certs(clusterCaCertSecret), trustStorePassword.toCharArray());
+
+            // Setup keystore from PKCS12 in cluster-operator secret
+            String keyStorePassword = new String(Util.decodeFromSecret(coKeySecret, "cluster-operator.password"), StandardCharsets.US_ASCII);
+            File keyStoreFile = Util.createFileStore(getClass().getName(), "p12", Util.decodeFromSecret(coKeySecret, "cluster-operator.p12"));
+            try {
+
+                ZKClientConfig clientConfig = new ZKClientConfig();
+
+                clientConfig.setProperty("zookeeper.clientCnxnSocket", "org.apache.zookeeper.ClientCnxnSocketNetty");
+                clientConfig.setProperty("zookeeper.client.secure", "true");
+                clientConfig.setProperty("zookeeper.sasl.client", "false");
+                clientConfig.setProperty("zookeeper.ssl.trustStore.location", trustStoreFile.getAbsolutePath());
+                clientConfig.setProperty("zookeeper.ssl.trustStore.password", trustStorePassword);
+                clientConfig.setProperty("zookeeper.ssl.trustStore.type", "PKCS12");
+                clientConfig.setProperty("zookeeper.ssl.keyStore.location", keyStoreFile.getAbsolutePath());
+                clientConfig.setProperty("zookeeper.ssl.keyStore.password", keyStorePassword);
+                clientConfig.setProperty("zookeeper.ssl.keyStore.type", "PKCS12");
+                clientConfig.setProperty("zookeeper.request.timeout", String.valueOf(operationTimeoutMs));
+
+                ZooKeeperAdmin admin = new ZooKeeperAdmin(
+                        zkConnectionString,
+                        10000,
+                        watchedEvent -> LOGGER.debugCr(reconciliation, "Received event {} from ZooKeeperAdmin client connected to {}", watchedEvent, zkConnectionString),
+                        clientConfig);
+
+                admin.delete("/controller", -1);
+                admin.close();
+                LOGGER.infoCr(reconciliation, "KRaft migration rollback ... /controller znode deleted");
+            } catch (Exception ex) {
+                LOGGER.warnCr(reconciliation, "Failed to delete /controller znode", ex);
+            } finally {
+                if (trustStoreFile != null) {
+                    if (!trustStoreFile.delete())   {
+                        LOGGER.warnCr(reconciliation, "Failed to delete file {}", trustStoreFile);
+                    }
+                }
+                if (keyStoreFile != null)   {
+                    if (!keyStoreFile.delete())   {
+                        LOGGER.warnCr(reconciliation, "Failed to delete file {}", keyStoreFile);
+                    }
+                }
+            }
+        } else {
+            // TODO: to be removed, just for monitoring/testing
+            LOGGER.infoCr(reconciliation, "No KRaft migration rollback ongoing ... no need to delete /controller znode");
+        }
     }
 
     /**
@@ -230,7 +317,8 @@ public class KafkaMetadataStateManager {
         }
         // rollback
         if (isKRaftDisabled()) {
-            return KafkaMetadataState.ZooKeeper;
+            return KafkaMetadataState.KRaftRollbackMigration;
+            //return KafkaMetadataState.ZooKeeper;
         }
         if (isKRaftEnabled()) {
             // set warning condition on Kafka CR status that strimzi.io/kraft: enabled is not allowed in this state?
@@ -255,7 +343,8 @@ public class KafkaMetadataStateManager {
         }
         // rollback
         if (isKRaftDisabled()) {
-            return KafkaMetadataState.ZooKeeper;
+            return KafkaMetadataState.KRaftRollbackMigration;
+            //return KafkaMetadataState.ZooKeeper;
         }
         return KafkaMetadataState.KRaftDualWriting;
     }
@@ -277,6 +366,28 @@ public class KafkaMetadataStateManager {
                         "Migration is done and you cannor rollback. Keep to use enabled value to finalize."));
         LOGGER.warnCr(reconciliation, "Warning strimzi.io/kraft: migration|disabled is not allowed in this state");
         return KafkaMetadataState.KRaftPostMigration;
+    }
+
+    /**
+     * Handles the transition from the {@code onKRaftRollbackMigration} state
+     *
+     * @param kafkaStatus Status of the Kafka custom resource where warnings about any issues with metadata state will be added
+     *
+     * @return next state
+     */
+    private KafkaMetadataState onKRaftRollbackMigration(KafkaStatus kafkaStatus) {
+        if (isKRaftDisabled()) {
+            return KafkaMetadataState.ZooKeeper;
+        }
+        if (isKRaftMigration()) {
+            return KafkaMetadataState.KRaftMigration;
+        }
+        // set warning condition on Kafka CR status that strimzi.io/kraft: enabled is not allowed in this state?
+        kafkaStatus.addCondition(StatusUtils.buildWarningCondition("KafkaMetadataStateWarning",
+                "The strimzi.io/kraft annotation can't be set to enabled in the rolling-migration." +
+                        "To come back migration again, use migration value."));
+        LOGGER.warnCr(reconciliation, "Warning strimzi.io/kraft: enabled is not allowed in this state");
+        return KafkaMetadataState.KRaftRollbackMigration;
     }
 
     /**
@@ -353,7 +464,7 @@ public class KafkaMetadataStateManager {
          * Transitions to:
          * <dl>
          *     <dt>KRaftMigration</dt><dd>If the user keeps the strimzi.io/kraft: migration annotation. The brokers are rolled with ZooKeeper migration enabled and connection to it. It also happens when migration is ongoing or invalid annotation value.</dd>
-         *     <dt>ZooKeeper</dt><dd>If the user wants to rollback and set strimzi.io/kraft: disabled annotation. The brokers are rolled back with ZooKeeper migration disabled and no connection to controllers.</dd>
+         *     <dt>KRaftRollbackMigration</dt><dd>If the user wants to rollback and set strimzi.io/kraft: disabled annotation. The brokers are rolled back with ZooKeeper migration disabled and no connection to controllers.</dd>
          *     <dt>KRaftDualWriting</dt><dd>Metadata migration finished. The cluster is in "dual write" mode. Metadata are written on both ZooKeeper and KRaft controllers.</dd>
          * </dl>
          */
@@ -366,7 +477,7 @@ public class KafkaMetadataStateManager {
          * Transitions to:
          * <dl>
          *     <dt>KRaftDualWriting</dt><dd>If user applies any invalid values for this state on the strimzi.io/kraft annotation.</dd>
-         *     <dt>ZooKeeper</dt><dd>If the user wants to rollback and sets strimzi.io/kraft: disabled annotation. The brokers are rolled back with ZooKeeper migration disabled and no connection to controllers.</dd>
+         *     <dt>KRaftRollbackMigration</dt><dd>If the user wants to rollback and sets strimzi.io/kraft: disabled annotation. The brokers are rolled back with ZooKeeper migration disabled and no connection to controllers.</dd>
          *     <dt>KRaftPostMigration</dt><dd>The user sets the strimzi.io/kraft: enabled annotation. The brokers are rolled with ZooKeeper migration disabled and without connection to it anymore.</dd>
          * </dl>
          */
@@ -393,6 +504,17 @@ public class KafkaMetadataStateManager {
          *     <dt>KRaft</dt><dd>If the strimzi.io/kraft: enabled is set but the spec.zookeeper is still in the Kafka resource. A warning is notified to the user on the Kafka resource.</dd>
          * </dl>
          */
-        KRaft
+        KRaft,
+
+        /**
+         * The brokers are rolled back to use ZooKeeper to store metadata, but rollback operation is still ongoing.
+         * The brokers are not connected to controllers anymore and the ZooKeeper migration is disabled.
+         * Waiting for user to remove the controllers pool to finish the migration rollback.
+         * The strimzi.io/kraft: disabled annotation is set on the Kafka resource.
+         * <dl>
+         *     <dt>ZooKeeper</dt><dd>If the user deletes the controllers pool.</dd>
+         * </dl>
+         */
+        KRaftRollbackMigration
     }
 }

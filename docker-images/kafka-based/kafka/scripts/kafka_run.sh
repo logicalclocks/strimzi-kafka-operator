@@ -87,6 +87,15 @@ if [ "$USE_KRAFT" == "true" ]; then
   KAFKA_READY=
   ZK_CONNECTED=
 else
+  KRAFT_LOG_DIR=$(grep "log\.dirs=" /tmp/strimzi.properties | sed "s/log\.dirs=*//")
+
+  # when in ZooKeeper mode, the __cluster_metadata folder should not exist.
+  # if it does, it means a KRaft migration rollback is ongoing and it has to be removed.
+  if [ -d "$KRAFT_LOG_DIR/__cluster_metadata-0" ]; then
+    echo "Removing __cluster_metadata folder"
+    rm -rf "$KRAFT_LOG_DIR/__cluster_metadata-0"
+  fi
+
   # when in ZooKeeper mode, the Kafka ready and ZooKeeper connected file paths are defined because used by the agent
   KAFKA_READY=/var/opt/kafka/kafka-ready
   ZK_CONNECTED=/var/opt/kafka/zk-connected
