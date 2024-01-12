@@ -14,10 +14,12 @@ import io.strimzi.operator.common.Util;
 import io.strimzi.operator.common.model.Ca;
 import io.strimzi.operator.common.model.PasswordGenerator;
 import io.strimzi.operator.common.model.StatusUtils;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.admin.ZooKeeperAdmin;
 import org.apache.zookeeper.client.ZKClientConfig;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
@@ -237,7 +239,7 @@ public class KafkaMetadataStateManager {
                 admin.delete("/controller", -1);
                 admin.close();
                 LOGGER.infoCr(reconciliation, "KRaft migration rollback ... /controller znode deleted");
-            } catch (Exception ex) {
+            } catch (IOException | InterruptedException | KeeperException ex) {
                 LOGGER.warnCr(reconciliation, "Failed to delete /controller znode", ex);
             } finally {
                 if (trustStoreFile != null) {
