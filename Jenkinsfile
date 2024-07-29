@@ -12,8 +12,9 @@ node("local") {
     stage('Build and push image(s)') {
       withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
         sh "mvn -q -Dexec.executable=echo -Dexec.args='\${project.version}' --non-recursive exec:exec -l version.log"        
-        version = readFile "version.log"
-        withEnv(["VERSION=${version.trim()}"]) {
+        strimzi_version = readFile "version.log"
+        kafka_version = "3.6.0"
+        withEnv(["VERSION=${strimzi_version.trim()}", "KAFKA_VERSION=${kafka_version}", "KAFKA_DOCKER_TAG=${strimzi_version.trim()}-kafka-${kafka_version}"]) {
            sh '''
                 make MVN_ARGS='-DskipTests' java_build
             '''
