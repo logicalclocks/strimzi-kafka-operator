@@ -1,3 +1,8 @@
+@Library("jenkins-library@main")
+
+import com.logicalclocks.jenkins.k8s.ImageBuilder
+
+
 node("local") {
     
     stage('Clone repository') {
@@ -10,12 +15,13 @@ node("local") {
         version = readFile "version.log"
         withEnv(["VERSION=${version.trim()}"]) {
            sh '''
-                export DOCKER_ORG=strimzi
-                export DOCKER_REGISTRY=docker.hops.works
-                export DOCKER_TAG=${VERSION}
-
-                make MVN_ARGS='-DskipTests' all
+                make MVN_ARGS='-DskipTests' java_build
             '''
+
+            def builder = new ImageBuilder(this)
+
+            m = readFile "${env.WORKSPACE}/build-manifest.json"
+            builder.run(m)
         }
       }
     }

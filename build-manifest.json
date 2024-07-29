@@ -1,0 +1,29 @@
+[
+    {
+        "name": "strimzi/base",
+        "version": "latest",
+        "dockerFile": "docker-images/base/Dockerfile",
+        "variables": [
+            "VERSION"
+        ],
+        "extraDockerArgs": "--build-arg strimzi_version=\"$VERSION\" "
+    },
+    {
+        "name": "strimzi/operator",
+        "version": "env:VERSION",
+        "dockerFile": "docker-images/operator/Dockerfile",
+        "variables": [
+            "VERSION"
+        ],
+        "extraDockerArgs": "--build-arg strimzi_version=\"$VERSION\" "
+    },
+    {
+        "name": "strimzi/kafka",
+        "version": "env:VERSION",
+        "dockerFile": "docker-images/kafka-based/kafka/Dockerfile",
+        "variables": [
+            "VERSION"
+        ],
+        "extraDockerArgs": "--build-arg KAFKA_VERSION=3.6.0 --build-arg KAFKA_DIST_DIR=./tmp/3.6.0 --build-arg THIRD_PARTY_LIBS=3.6.x  --build-arg strimzi_version=\"$VERSION\" "
+    }
+]
