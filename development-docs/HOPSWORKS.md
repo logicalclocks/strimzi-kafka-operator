@@ -5,6 +5,7 @@
 ### Authorizer
 
 If you want to deploy changes to the authorizer build it beforehand:
+
 https://github.com/logicalclocks/hops-kafka-authorizer/blob/master/README.md
 
 ### Java
@@ -43,5 +44,5 @@ https://github.com/logicalclocks/hopsworks-helm/blob/main/charts/kafka/values.ya
 
 Specify the new authorizer version here:
 
-https://github.com/logicalclocks/strimzi-kafka-operator/blob/release-0.39.x/docker-images/artifacts/kafka-thirdparty-libs/3.5.x/pom.xml#L70
-https://github.com/logicalclocks/strimzi-kafka-operator/blob/release-0.39.x/docker-images/artifacts/kafka-thirdparty-libs/3.6.x/pom.xml#L73
+* https://github.com/logicalclocks/strimzi-kafka-operator/blob/release-0.39.x/docker-images/artifacts/kafka-thirdparty-libs/3.5.x/pom.xml#L70
+* https://github.com/logicalclocks/strimzi-kafka-operator/blob/release-0.39.x/docker-images/artifacts/kafka-thirdparty-libs/3.6.x/pom.xml#L73
