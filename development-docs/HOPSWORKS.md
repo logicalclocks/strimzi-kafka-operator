@@ -16,7 +16,7 @@ Use Java 17 for deploying Strimzi!
 Specify where to push the finished docker images:
 
 ```sh
-export DOCKER_ORG=strimzi  # set to dev/YOUR_NAME/strimzi for personal development
+export DOCKER_ORG=strimzi  # set to dev/YOUR_NAME/strimzi for personal testing
 export DOCKER_REGISTRY=docker.hops.works  # defaults to docker.io if unset
 export DOCKER_TAG=0.39.0
 ```
@@ -33,7 +33,13 @@ Build and push images:
 make MVN_ARGS='-DskipTests' all
 ```
 
-## Updating hopsworks
+## Testing
+
+Make sure you set `defaultImageRepository` according to the value provided in `DOCKER_ORG`
+
+https://github.com/logicalclocks/hopsworks-helm/blob/main/charts/kafka/values.yaml#L65
+
+# Updating hopsworks
 
 Specify the new authorizer version here:
 
