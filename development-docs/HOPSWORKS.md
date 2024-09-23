@@ -44,5 +44,5 @@ https://github.com/logicalclocks/hopsworks-helm/blob/main/charts/kafka/values.ya
 
 Specify the new authorizer version here:
 
-* https://github.com/logicalclocks/strimzi-kafka-operator/blob/release-0.39.x/docker-images/artifacts/kafka-thirdparty-libs/3.5.x/pom.xml#L70
-* https://github.com/logicalclocks/strimzi-kafka-operator/blob/release-0.39.x/docker-images/artifacts/kafka-thirdparty-libs/3.6.x/pom.xml#L73
+* [3.5.x](../docker-images/artifacts/kafka-thirdparty-libs/3.5.x/pom.xml#L70)
+* [3.6.x](../docker-images/artifacts/kafka-thirdparty-libs/3.6.x/pom.xml#L73)
