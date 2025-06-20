@@ -40,11 +40,11 @@ Make sure you set `defaultImageRepository` according to the value provided in `D
 
 https://github.com/logicalclocks/hopsworks-helm/
 
-Or in existing cluster 
+Or in existing cluster update `strimzi-cluster-operator` deployment.
 
 # Updating hopsworks
 
 Specify the new authorizer version here:
 
-* [3.5.x](../docker-images/artifacts/kafka-thirdparty-libs/3.5.x/pom.xml#L70)
-* [3.6.x](../docker-images/artifacts/kafka-thirdparty-libs/3.6.x/pom.xml#L73)
+* [3.9.x](../docker-images/artifacts/kafka-thirdparty-libs/3.9.x/pom.xml#L72)
+* [4.0.x](../docker-images/artifacts/kafka-thirdparty-libs/4.0.x/pom.xml#L55)
