@@ -24,9 +24,9 @@ node("local") {
                 sh "mvn -q -Dexec.executable=echo -Dexec.args='\${project.version}' --non-recursive exec:exec -l version.log"
                 def strimzi_version = readFile("version.log").trim()
 
-                // Install make for building the Java project
+                // Install dependencies
                 sh '''
-                    apt-get update && apt-get install -y make git
+                    apt-get update && apt-get install -y make git docker
                 '''
 
                 // Install yq for processing YAML files
