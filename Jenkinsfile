@@ -10,7 +10,7 @@ node("local") {
     stage('Build and push image(s)') {
         withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
 
-            docker.image('maven:3.8.5-openjdk-17-jdk').inside('-v $HOME/.m2:/root/.m2') {
+            docker.image('maven:3.8.5-openjdk-17-slim').inside('-v $HOME/.m2:/root/.m2') {
                 // get and install kafka authorizer
                 sh "curl -L -o hops-kafka-authorizer-4.0.0-SNAPSHOT.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
                 sh "mvn install:install-file \
@@ -26,7 +26,7 @@ node("local") {
 
                 // Install make for building the Java project
                 sh '''
-                    apk update && apk add make
+                    apt-get update && apt-get install -y make curl
                 '''
 
                 // Java build
