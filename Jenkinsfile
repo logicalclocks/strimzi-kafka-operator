@@ -12,7 +12,7 @@ node("local") {
 
             docker.image('maven:3.8.5-openjdk-17').inside('-v $HOME/.m2:/root/.m2') {
                 // get and install kafka authorizer
-                sh "wget https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
+                sh "curl -L -o hops-kafka-authorizer-4.0.0-SNAPSHOT.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
                 sh "mvn install:install-file \
                     -Dfile=hops-kafka-authorizer-4.0.0-SNAPSHOT.jar \
                     -DgroupId=hops.io.kafka \
