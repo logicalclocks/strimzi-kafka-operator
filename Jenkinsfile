@@ -26,6 +26,7 @@ node("local") {
 
                 // Java build
                 sh '''
+                    apt-get update && apt-get install -y make
                     make MVN_ARGS='-DskipTests' java_build
                 '''
 
@@ -33,13 +34,13 @@ node("local") {
                 def kafka_version = "3.9.0"
                 def libs_version = "3.9.x"
 
+                // Build the Docker image
                 withEnv([
                     "STRIMZI_VERSION=${strimzi_version}",
                     "KAFKA_VERSION=${kafka_version}",
                     "LIBS_VERSION=${libs_version}",
                     "KAFKA_DOCKER_TAG=${strimzi_version}-kafka-${kafka_version}"
                 ]) {
-                    // Docker build
                     def builder = new ImageBuilder(this)
                     def m = readFile "${env.WORKSPACE}/build-manifest.json"
                     builder.run(m)
