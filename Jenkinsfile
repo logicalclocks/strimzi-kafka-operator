@@ -26,7 +26,7 @@ node("local") {
 
                 // Install make for building the Java project
                 sh '''
-                    apt-get update && apt-get install -y make
+                    apt-get update && apt-get install -y make git
                 '''
 
                 // Install yq for processing YAML files
