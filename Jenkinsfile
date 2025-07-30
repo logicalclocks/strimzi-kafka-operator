@@ -51,7 +51,7 @@ node("local") {
 
                 // Java build
                 sh '''
-                    make MVN_ARGS='-DskipTests' java_build
+                    make MVN_ARGS='-DskipTests' java_install
                 '''
 
                 // Set the Kafka and libs versions
