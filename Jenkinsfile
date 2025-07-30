@@ -29,6 +29,13 @@ node("local") {
                     apt-get update && apt-get install -y make yq
                 '''
 
+                // Install yq for processing YAML files
+                sh '''
+                    curl -L https://github.com/mikefarah/yq/releases/download/v4.43.1/yq_linux_amd64 -o /usr/local/bin/yq
+                    chmod +x /usr/local/bin/yq
+                    yq --version
+                '''
+
                 // Java build
                 sh '''
                     make MVN_ARGS='-DskipTests' java_build
