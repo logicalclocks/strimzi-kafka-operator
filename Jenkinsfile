@@ -49,6 +49,14 @@ node("local") {
                     yq --version
                 '''
 
+                // Install helm
+                sh '''
+                    curl -fsSL -o helm.tar.gz https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz
+                    tar -xzf helm.tar.gz
+                    mv linux-amd64/helm /usr/local/bin/helm
+                    chmod +x /usr/local/bin/helm
+                '''
+
                 // Java build
                 sh '''
                     make MVN_ARGS='-DskipTests' java_install
