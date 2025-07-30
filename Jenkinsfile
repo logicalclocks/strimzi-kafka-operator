@@ -26,7 +26,13 @@ node("local") {
 
                 // Install dependencies
                 sh '''
-                    apt-get update && apt-get install -y make git docker
+                    apt-get update && apt-get install -y make git
+                '''
+
+                // Install docker
+                sh '''
+                    curl -fsSL https://get.docker.com -o get-docker.sh
+                    sh get-docker.sh
                 '''
 
                 // Install yq for processing YAML files
