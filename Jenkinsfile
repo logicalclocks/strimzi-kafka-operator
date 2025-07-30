@@ -24,9 +24,13 @@ node("local") {
                 sh "mvn -q -Dexec.executable=echo -Dexec.args='\${project.version}' --non-recursive exec:exec -l version.log"
                 def strimzi_version = readFile("version.log").trim()
 
+                // Install make for building the Java project
+                sh '''
+                    apk update && apk add make
+                '''
+
                 // Java build
                 sh '''
-                    apt-get update && apt-get install -y make
                     make MVN_ARGS='-DskipTests' java_build
                 '''
 
