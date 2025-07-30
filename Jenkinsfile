@@ -26,7 +26,7 @@ node("local") {
 
                 // Install dependencies
                 sh '''
-                    apt-get update && apt-get install -y make git
+                    apt-get update && apt-get install -y make git zip
                 '''
 
                 // Install docker
