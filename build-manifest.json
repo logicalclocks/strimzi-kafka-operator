@@ -23,8 +23,9 @@
         "dockerFile": "docker-images/kafka-based/kafka/Dockerfile",
         "variables": [
             "VERSION",
-            "KAFKA_VERSION"
+            "KAFKA_VERSION",
+            "LIBS_VERSION"
         ],
-        "extraDockerArgs": "--build-arg KAFKA_VERSION=\"$KAFKA_VERSION\" --build-arg KAFKA_DIST_DIR=./tmp/\"$KAFKA_VERSION\" --build-arg THIRD_PARTY_LIBS=3.6.x  --build-arg strimzi_version=\"$VERSION\" "
+        "extraDockerArgs": "--build-arg KAFKA_VERSION=\"$KAFKA_VERSION\" --build-arg KAFKA_DIST_DIR=./tmp/\"$KAFKA_VERSION\" --build-arg THIRD_PARTY_LIBS=\"$LIBS_VERSION\"  --build-arg strimzi_version=\"$VERSION\" "
     }
 ]
