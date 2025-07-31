@@ -85,8 +85,8 @@ pipeline {
                     node('local') {
                         withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
                             // Set the Kafka and libs versions
-                            def kafka_version = "3.9.0"
-                            def libs_version = "3.9.x"
+                            def kafka_version = "4.0.0"
+                            def libs_version = "4.0.x"
 
                             // Build the Docker image
                             withEnv([
