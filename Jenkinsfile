@@ -3,24 +3,32 @@
 import com.logicalclocks.jenkins.k8s.ImageBuilder
 
 pipeline {
-    agent {
-        docker {
-            image 'maven:3.8.5-openjdk-17-slim'
-            args '--user=root -v $HOME/.m2:/root/.m2'
-        }
-    }
-    stages {
+  agent { label 'local' }  // default to local node
+
+  stages {
         stage('Clone repository') {
             steps {
                 checkout scm
             }
         }
         stage("Get kafka authorizer") {
+            agent {
+                docker {
+                    image 'maven:3.8.5-openjdk-17-slim'
+                    args '--user=root -v $HOME/.m2:/root/.m2'
+                }
+            }
             steps {
                 sh "curl -L -o /tmp/hops-kafka-authorizer.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
             }
         }
         stage('Get strimzi version') {
+            agent {
+                docker {
+                    image 'maven:3.8.5-openjdk-17-slim'
+                    args '--user=root -v $HOME/.m2:/root/.m2'
+                }
+            }
             steps {
                 script {
                     def version = sh(
@@ -32,6 +40,12 @@ pipeline {
             }
         }
         stage("Build strimzi") {
+            agent {
+                docker {
+                    image 'maven:3.8.5-openjdk-17-slim'
+                    args '--user=root -v $HOME/.m2:/root/.m2'
+                }
+            }
             steps {
                 // Install dependencies
                 sh '''
@@ -72,17 +86,7 @@ pipeline {
                 '''
             }
         }
-        stage('Debug workspace') {
-            agent { label 'local' }
-            steps {
-                sh 'ls -la $WORKSPACE'
-                sh 'cat $WORKSPACE/build-manifest.json'
-                sh 'docker --version || echo "docker not installed"'
-                sh 'make --version || echo "make not installed"'
-            }
-        }
         stage('Build and push images') {
-            agent { label 'local' }
             steps {
                 withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
                     script {
