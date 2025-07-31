@@ -15,7 +15,7 @@ pipeline {
                 checkout scm
             }
         }
-        stage("get kafka authorizer") {
+        stage("Get kafka authorizer") {
             steps {
                 // get and install kafka authorizer
                 sh "curl -L -o hops-kafka-authorizer-4.0.0-SNAPSHOT.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
@@ -27,7 +27,7 @@ pipeline {
                     -Dpackaging=jar"
             }
         }
-        stage("build strimzi") {
+        stage("Build strimzi") {
             steps {
                 // Install dependencies
                 sh '''
@@ -68,7 +68,7 @@ pipeline {
                 '''
             }
         }
-        stage('Build and push image(s)') {
+        stage('Build and push images') {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
@@ -79,10 +79,16 @@ pipeline {
                             ./aws/install
                         '''
                         
-                        def strimzi_version = sh(
-                            script: 'mvn -q -Dexec.executable=echo -Dexec.args=\'${project.version}\' --non-recursive exec:exec',
+                        def strimzi_version_raw = sh(
+                            script: 'mvn -q -Dexec.executable=echo -Dexec.args=\'${project.version}\' --non-recursive exec:exec || echo "ERROR"',
                             returnStdout: true
                         ).trim()
+
+                        if (!strimzi_version_raw || strimzi_version_raw == "ERROR") {
+                        error "Failed to get project version via Maven. Check if pom.xml is present and valid."
+                        }
+
+                        def strimzi_version = strimzi_version_raw.trim()
 
                         // Set the Kafka and libs versions
                         def kafka_version = "3.9.0"
