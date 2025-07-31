@@ -59,13 +59,6 @@ node("local") {
                     chmod +x /usr/local/bin/helm
                 '''
 
-                // Install AWS CLI
-                sh '''
-                    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                    unzip -o awscliv2.zip
-                    ./aws/install
-                '''
-
                 // Java build
                 sh '''
                     make MVN_ARGS='-DskipTests' java_install
