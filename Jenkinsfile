@@ -3,29 +3,12 @@
 import com.logicalclocks.jenkins.k8s.ImageBuilder
 
 pipeline {
-  agent { label 'local' }  // default to local node
+  agent { label 'local' }
 
   stages {
         stage('Clone repository') {
             steps {
                 checkout scm
-            }
-        }
-        stage('Get strimzi version') {
-            agent {
-                docker {
-                    image 'maven:3.8.5-openjdk-17-slim'
-                    args '--user=root -v $HOME/.m2:/root/.m2'
-                }
-            }
-            steps {
-                script {
-                    def version = sh(
-                        script: 'mvn -q -Dexec.executable=echo -Dexec.args=\'${project.version}\' --non-recursive exec:exec',
-                        returnStdout: true
-                    ).trim()
-                    env.STRIMZI_VERSION = version
-                }
             }
         }
         stage("Build strimzi") {
@@ -36,6 +19,12 @@ pipeline {
                 }
             }
             steps {
+                sh '''
+                    git clone --branch HWORKS-2215 --single-branch https://github.com/bubriks/hops-kafka-authorizer.git
+                    cd hops-kafka-authorizer
+                    mvn clean install
+                '''
+
                 // Install dependencies
                 sh '''
                     apt-get update && apt-get install -y make git zip
@@ -76,25 +65,23 @@ pipeline {
                 sh '''
                     make MVN_ARGS='-DskipTests' java_install
                 '''
+
+                // Build the Docker image
+                sh '''
+                    make docker_build
+                '''
             }
         }
-        stage('Build and push images') {
+        stage('Push images') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
                     script {
-                        def kafka_version = "4.0.0"
-                        def libs_version = "4.0.x"
+                        new ImageBuilder(this)
 
-                        withEnv([
-                            "STRIMZI_VERSION=${env.STRIMZI_VERSION}",
-                            "KAFKA_VERSION=${kafka_version}",
-                            "LIBS_VERSION=${libs_version}",
-                            "KAFKA_DOCKER_TAG=${env.STRIMZI_VERSION}-kafka-${kafka_version}"
-                        ]) {
-                            def builder = new ImageBuilder(this)
-                            def m = readFile "${env.WORKSPACE}/build-manifest.json"
-                            builder.run(m)
-                        }
+                        sh '''
+                            docker tag strimzi/operator:latest dev5.devnet.hops.works:5043/ralfs_mini_registry/strimzi/operator:0.46.0
+                            docker push dev5.devnet.hops.works:5043/ralfs_mini_registry/strimzi/operator:0.46.0
+                        '''
                     }
                 }
             }
