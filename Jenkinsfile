@@ -15,7 +15,7 @@ node("local") {
     stage("Get strimzi dependencies") {
         // Set permissions for Maven local repository
         sh """
-            sudo chown -R jenkinsmaster:jenkinsmaster /home/jenkinsmaster/.m2
+            chown -R jenkinsmaster:jenkinsmaster /home/jenkinsmaster/.m2
             chmod -R u+w /home/jenkinsmaster/.m2
         """
 
@@ -23,11 +23,11 @@ node("local") {
         sh "curl -L -o hops-kafka-authorizer-4.0.0-SNAPSHOT.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
         sh """
             mvn install:install-file \
-            -Dfile=hops-kafka-authorizer-4.0.0-SNAPSHOT.jar \
-            -DgroupId=hops.io.kafka \
-            -DartifactId=hops-kafka-authorizer \
-            -Dversion=4.0.0-SNAPSHOT \
-            -Dpackaging=jar
+                -Dfile=hops-kafka-authorizer-4.0.0-SNAPSHOT.jar \
+                -DgroupId=hops.io.kafka \
+                -DartifactId=hops-kafka-authorizer \
+                -Dversion=4.0.0-SNAPSHOT \
+                -Dpackaging=jar
         """
 
         // Install dependencies
