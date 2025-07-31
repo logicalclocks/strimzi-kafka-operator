@@ -63,16 +63,14 @@ pipeline {
                     mv linux-amd64/helm /usr/local/bin/helm
                     chmod +x /usr/local/bin/helm
                 '''
-            }
-            // Get strimzi version
-            steps {
+
+                // Get strimzi version
                 strimzi_version = sh(
                     script: 'mvn -q -Dexec.executable=echo -Dexec.args=\'${project.version}\' --non-recursive exec:exec',
                     returnStdout: true
                 ).trim()
-            }
-            // Java build
-            steps {
+
+                // Java build
                 sh '''
                     make MVN_ARGS='-DskipTests' java_install
                 '''
