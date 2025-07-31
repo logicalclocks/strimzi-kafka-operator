@@ -4,57 +4,65 @@ node("local") {
     }
 
     stage('Get strimzi version') {
-            def version = sh(
-                script: 'mvn -q -Dexec.executable=echo -Dexec.args=\'${project.version}\' --non-recursive exec:exec',
-                returnStdout: true
-            ).trim()
-            env.STRIMZI_VERSION = version
-    echo "STRIMZI_VERSION = ${env.STRIMZI_VERSION}"
-        }
+        def version = sh(
+            script: 'mvn -q -Dexec.executable=echo -Dexec.args=\'${project.version}\' --non-recursive exec:exec',
+            returnStdout: true
+        ).trim()
+        env.STRIMZI_VERSION = version
+        echo "STRIMZI_VERSION = ${env.STRIMZI_VERSION}"
+    }
 
     stage("Get strimzi dependencies") {
-            // get and install kafka authorizer
-            sh "curl -L -o hops-kafka-authorizer-4.0.0-SNAPSHOT.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
-    sh """mvn install:install-file \
-                -Dfile=hops-kafka-authorizer-4.0.0-SNAPSHOT.jar \
-                -DgroupId=hops.io.kafka \
-                -DartifactId=hops-kafka-authorizer \
-                -Dversion=4.0.0-SNAPSHOT \
-      -Dpackaging=jar"""
+        // Set permissions for Maven local repository
+        sh """
+            sudo chown -R jenkinsmaster:jenkinsmaster /home/jenkinsmaster/.m2
+            chmod -R u+w /home/jenkinsmaster/.m2
+        """
 
-            // Install dependencies
-            sh '''
-                apt-get update && apt-get install -y make git zip
-            '''
+        // get and install kafka authorizer
+        sh "curl -L -o hops-kafka-authorizer-4.0.0-SNAPSHOT.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
+        sh """
+            mvn install:install-file \
+            -Dfile=hops-kafka-authorizer-4.0.0-SNAPSHOT.jar \
+            -DgroupId=hops.io.kafka \
+            -DartifactId=hops-kafka-authorizer \
+            -Dversion=4.0.0-SNAPSHOT \
+            -Dpackaging=jar
+        """
 
-            // Install docker
-            sh '''
-                curl -fsSL https://get.docker.com -o get-docker.sh
-                sh get-docker.sh
-            '''
+        // Install dependencies
+        sh '''
+            apt-get update && apt-get install -y make git zip
+        '''
 
-            // Install shellcheck for shell script linting
-            sh '''
-                curl -L https://github.com/koalaman/shellcheck/releases/download/v0.9.0/shellcheck-v0.9.0.linux.x86_64.tar.xz | tar -xJ
-                cp shellcheck-v0.9.0/shellcheck /usr/local/bin/
-                chmod +x /usr/local/bin/shellcheck
-            '''
+        // Install docker
+        sh '''
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sh get-docker.sh
+        '''
 
-            // Install yq for processing YAML files
-            sh '''
-                curl -L https://github.com/mikefarah/yq/releases/download/v4.43.1/yq_linux_amd64 -o /usr/local/bin/yq
-                chmod +x /usr/local/bin/yq
-                yq --version
-            '''
+        // Install shellcheck for shell script linting
+        sh '''
+            curl -L https://github.com/koalaman/shellcheck/releases/download/v0.9.0/shellcheck-v0.9.0.linux.x86_64.tar.xz | tar -xJ
+            cp shellcheck-v0.9.0/shellcheck /usr/local/bin/
+            chmod +x /usr/local/bin/shellcheck
+        '''
 
-            // Install helm
-            sh '''
-                curl -fsSL -o helm.tar.gz https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz
-                tar -xzf helm.tar.gz
-                mv linux-amd64/helm /usr/local/bin/helm
-                chmod +x /usr/local/bin/helm
-            '''
-        }
+        // Install yq for processing YAML files
+        sh '''
+            curl -L https://github.com/mikefarah/yq/releases/download/v4.43.1/yq_linux_amd64 -o /usr/local/bin/yq
+            chmod +x /usr/local/bin/yq
+            yq --version
+        '''
+
+        // Install helm
+        sh '''
+            curl -fsSL -o helm.tar.gz https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz
+            tar -xzf helm.tar.gz
+            mv linux-amd64/helm /usr/local/bin/helm
+            chmod +x /usr/local/bin/helm
+        '''
+    }
 
     stage('Build and push image(s)') {
         withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
