@@ -19,16 +19,16 @@ pipeline {
                 }
             }
             steps {
+                // Install dependencies
+                sh '''
+                    apt-get update && apt-get install -y make git zip
+                '''
+
                 sh '''
                     rm -rf hops-kafka-authorizer
                     git clone --branch HWORKS-2215 --single-branch https://github.com/bubriks/hops-kafka-authorizer.git
                     cd hops-kafka-authorizer
                     mvn clean install
-                '''
-
-                // Install dependencies
-                sh '''
-                    apt-get update && apt-get install -y make git zip
                 '''
 
                 // Install docker
