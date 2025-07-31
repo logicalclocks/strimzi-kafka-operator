@@ -5,7 +5,7 @@ import com.logicalclocks.jenkins.k8s.ImageBuilder
 pipeline {
     agent {
         docker {
-            image 'maven:3.8.5-openjdk-17'
+            image 'maven:3.8.5-openjdk-17-slim'
             args '-v $HOME/.m2:/root/.m2'
         }
     }
