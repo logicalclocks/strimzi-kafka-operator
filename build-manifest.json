@@ -4,18 +4,14 @@
     "version": "env:VERSION",
     "dockerFile": "docker-images/base/Dockerfile",
     "variables": ["VERSION"],
-    "extraDockerArgs": [
-      "--build-arg", "strimzi_version=$VERSION"
-    ]
+    "extraDockerArgs": "--build-arg strimzi_version=\"$VERSION\""
   },
   {
     "name": "strimzi/operator",
     "version": "env:VERSION",
     "dockerFile": "docker-images/operator/Dockerfile",
     "variables": ["VERSION"],
-    "extraDockerArgs": [
-      "--build-arg", "strimzi_version=$VERSION"
-    ]
+    "extraDockerArgs": "--build-arg strimzi_version=\"$VERSION\""
   },
   {
     "name": "strimzi/kafka",
@@ -26,11 +22,6 @@
       "KAFKA_VERSION",
       "LIBS_VERSION"
     ],
-    "extraDockerArgs": [
-      "--build-arg", "KAFKA_VERSION=$KAFKA_VERSION",
-      "--build-arg", "KAFKA_DIST_DIR=./tmp/$KAFKA_VERSION",
-      "--build-arg", "THIRD_PARTY_LIBS=$LIBS_VERSION",
-      "--build-arg", "strimzi_version=$VERSION"
-    ]
+    "extraDockerArgs": "--build-arg KAFKA_VERSION=\"${KAFKA_VERSION}\" --build-arg KAFKA_DIST_DIR=\"./tmp/$KAFKA_VERSION\" --build-arg THIRD_PARTY_LIBS=\"$LIBS_VERSION\" --build-arg strimzi_version=\"$VERSION\""
   }
 ]
