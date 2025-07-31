@@ -80,25 +80,22 @@ pipeline {
             }
         }
         stage('Build and push images') {
+            agent { label 'local' }
             steps {
-                script {
-                    node('local') {
-                        withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
-                            // Set the Kafka and libs versions
-                            def kafka_version = "4.0.0"
-                            def libs_version = "4.0.x"
+                withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
+                    script {
+                        def kafka_version = "4.0.0"
+                        def libs_version = "4.0.x"
 
-                            // Build the Docker image
-                            withEnv([
-                                "STRIMZI_VERSION=${env.STRIMZI_VERSION}",
-                                "KAFKA_VERSION=${kafka_version}",
-                                "LIBS_VERSION=${libs_version}",
-                                "KAFKA_DOCKER_TAG=${env.STRIMZI_VERSION}-kafka-${kafka_version}"
-                            ]) {
-                                def builder = new ImageBuilder(this)
-                                def m = readFile "${env.WORKSPACE}/build-manifest.json"
-                                builder.run(m)
-                            }
+                        withEnv([
+                            "STRIMZI_VERSION=${env.STRIMZI_VERSION}",
+                            "KAFKA_VERSION=${kafka_version}",
+                            "LIBS_VERSION=${libs_version}",
+                            "KAFKA_DOCKER_TAG=${env.STRIMZI_VERSION}-kafka-${kafka_version}"
+                        ]) {
+                            def builder = new ImageBuilder(this)
+                            def m = readFile "${env.WORKSPACE}/build-manifest.json"
+                            builder.run(m)
                         }
                     }
                 }
