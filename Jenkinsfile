@@ -21,8 +21,10 @@ node("local") {
                     -Dpackaging=jar"
 
                 // Get the Strimzi version from the pom.xml
-                sh "mvn -q -Dexec.executable=echo -Dexec.args='\${project.version}' --non-recursive exec:exec -l version.log"
-                def strimzi_version = readFile("version.log").trim()
+                def strimzi_version = sh(
+                    script: "mvn -q -Dexec.executable=echo -Dexec.args='\\${project.version}' --non-recursive exec:exec",
+                    returnStdout: true
+                ).trim()
 
                 // Install dependencies
                 sh '''
