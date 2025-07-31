@@ -11,7 +11,8 @@ pipeline {
                 checkout scm
 
                 sh '''
-                    git clone --branch HWORKS-2215 --single-branch https://github.com/bubriks/hops-kafka-authorizer.git
+                    rm -rf /tmp/hops-kafka-authorizer
+                    git clone --branch HWORKS-2215 --single-branch https://github.com/bubriks/hops-kafka-authorizer.git /tmp/hops-kafka-authorizer
                 '''
             }
         }
@@ -24,7 +25,7 @@ pipeline {
             }
             steps {
                 sh '''
-                    cd hops-kafka-authorizer
+                    cd /tmp/hops-kafka-authorizer
                     mvn clean install
                 '''
 
