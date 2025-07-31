@@ -72,6 +72,15 @@ pipeline {
                 '''
             }
         }
+        stage('Debug workspace') {
+            agent { label 'local' }
+            steps {
+                sh 'ls -la $WORKSPACE'
+                sh 'cat $WORKSPACE/build-manifest.json'
+                sh 'docker --version || echo "docker not installed"'
+                sh 'make --version || echo "make not installed"'
+            }
+        }
         stage('Build and push images') {
             agent { label 'local' }
             steps {
