@@ -11,17 +11,6 @@ pipeline {
                 checkout scm
             }
         }
-        stage("Get kafka authorizer") {
-            agent {
-                docker {
-                    image 'maven:3.8.5-openjdk-17-slim'
-                    args '--user=root -v $HOME/.m2:/root/.m2'
-                }
-            }
-            steps {
-                sh "curl -L -o /tmp/hops-kafka-authorizer.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
-            }
-        }
         stage('Get strimzi version') {
             agent {
                 docker {
@@ -79,6 +68,9 @@ pipeline {
                     mv linux-amd64/helm /usr/local/bin/helm
                     chmod +x /usr/local/bin/helm
                 '''
+
+                // get kafka authorizer
+                sh "curl -L -o /tmp/hops-kafka-authorizer.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
 
                 // Java build
                 sh '''
