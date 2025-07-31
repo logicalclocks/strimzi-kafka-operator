@@ -67,6 +67,8 @@ pipeline {
                     make MVN_ARGS='-DskipTests' java_install
                 '''
 
+                sh "sudo systemctl start docker"
+
                 // Build the Docker image
                 sh '''
                     make docker_build
