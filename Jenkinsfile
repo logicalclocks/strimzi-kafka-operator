@@ -78,17 +78,9 @@ pipeline {
                             unzip -o awscliv2.zip
                             ./aws/install
                         '''
-                        
-                        def strimzi_version_raw = sh(
-                            script: 'mvn -q -Dexec.executable=echo -Dexec.args=\'${project.version}\' --non-recursive exec:exec || echo "ERROR"',
-                            returnStdout: true
-                        ).trim()
 
-                        if (!strimzi_version_raw || strimzi_version_raw == "ERROR") {
-                        error "Failed to get project version via Maven. Check if pom.xml is present and valid."
-                        }
-
-                        def strimzi_version = strimzi_version_raw.trim()
+                        sh "mvn -q -Dexec.executable=echo -Dexec.args='\${project.version}' --non-recursive exec:exec -l version.log"        
+                        strimzi_version = readFile "version.log"
 
                         // Set the Kafka and libs versions
                         def kafka_version = "3.9.0"
@@ -96,10 +88,10 @@ pipeline {
 
                         // Build the Docker image
                         withEnv([
-                            "STRIMZI_VERSION=${strimzi_version}",
+                            "STRIMZI_VERSION=${strimzi_version.trim()}",
                             "KAFKA_VERSION=${kafka_version}",
                             "LIBS_VERSION=${libs_version}",
-                            "KAFKA_DOCKER_TAG=${strimzi_version}-kafka-${kafka_version}"
+                            "KAFKA_DOCKER_TAG=${strimzi_version.trim()}-kafka-${kafka_version}"
                         ]) {
                             def builder = new ImageBuilder(this)
                             def m = readFile "${env.WORKSPACE}/build-manifest.json"
