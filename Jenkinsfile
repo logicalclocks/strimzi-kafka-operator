@@ -20,12 +20,6 @@ node("local") {
                     -Dversion=4.0.0-SNAPSHOT \
                     -Dpackaging=jar"
 
-                // Get the Strimzi version from the pom.xml
-                def strimzi_version = sh(
-                    script: 'mvn -q -Dexec.executable=echo -Dexec.args=\'${project.version}\' --non-recursive exec:exec',
-                    returnStdout: true
-                ).trim()
-
                 // Install dependencies
                 sh '''
                     apt-get update && apt-get install -y make git zip
@@ -63,22 +57,28 @@ node("local") {
                 sh '''
                     make MVN_ARGS='-DskipTests' java_install
                 '''
+            }
 
-                // Set the Kafka and libs versions
-                def kafka_version = "3.9.0"
-                def libs_version = "3.9.x"
+            // Get the Strimzi version from the pom.xml
+            def strimzi_version = sh(
+                script: 'mvn -q -Dexec.executable=echo -Dexec.args=\'${project.version}\' --non-recursive exec:exec',
+                returnStdout: true
+            ).trim()
 
-                // Build the Docker image
-                withEnv([
-                    "STRIMZI_VERSION=${strimzi_version}",
-                    "KAFKA_VERSION=${kafka_version}",
-                    "LIBS_VERSION=${libs_version}",
-                    "KAFKA_DOCKER_TAG=${strimzi_version}-kafka-${kafka_version}"
-                ]) {
-                    def builder = new ImageBuilder(this)
-                    def m = readFile "${env.WORKSPACE}/build-manifest.json"
-                    builder.run(m)
-                }
+            // Set the Kafka and libs versions
+            def kafka_version = "3.9.0"
+            def libs_version = "3.9.x"
+
+            // Build the Docker image
+            withEnv([
+                "STRIMZI_VERSION=${strimzi_version}",
+                "KAFKA_VERSION=${kafka_version}",
+                "LIBS_VERSION=${libs_version}",
+                "KAFKA_DOCKER_TAG=${strimzi_version}-kafka-${kafka_version}"
+            ]) {
+                def builder = new ImageBuilder(this)
+                def m = readFile "${env.WORKSPACE}/build-manifest.json"
+                builder.run(m)
             }
         }
     }
