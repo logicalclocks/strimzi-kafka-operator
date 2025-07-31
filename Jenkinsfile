@@ -6,7 +6,7 @@ pipeline {
     agent {
         docker {
             image 'maven:3.8.5-openjdk-17-slim'
-            args '-v $HOME/.m2:/root/.m2'
+            args '--user=root -v $HOME/.m2:/root/.m2'
         }
     }
     stages {
