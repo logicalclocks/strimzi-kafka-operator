@@ -9,11 +9,6 @@ pipeline {
         stage('Clone repository') {
             steps {
                 checkout scm
-
-                sh '''
-                    rm -rf /tmp/hops-kafka-authorizer
-                    git clone --branch HWORKS-2215 --single-branch https://github.com/bubriks/hops-kafka-authorizer.git /tmp/hops-kafka-authorizer
-                '''
             }
         }
         stage("Build strimzi") {
@@ -25,7 +20,9 @@ pipeline {
             }
             steps {
                 sh '''
-                    cd /tmp/hops-kafka-authorizer
+                    rm -rf hops-kafka-authorizer
+                    git clone --branch HWORKS-2215 --single-branch https://github.com/bubriks/hops-kafka-authorizer.git
+                    cd hops-kafka-authorizer
                     mvn clean install
                 '''
 
