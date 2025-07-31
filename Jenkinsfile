@@ -35,6 +35,7 @@ pipeline {
                 sh '''
                     curl -fsSL https://get.docker.com -o get-docker.sh
                     sh get-docker.sh
+                    systemctl start docker
                 '''
 
                 // Install shellcheck for shell script linting
@@ -66,8 +67,6 @@ pipeline {
                 sh '''
                     make MVN_ARGS='-DskipTests' java_install
                 '''
-
-                sh "sudo systemctl start docker"
 
                 // Build the Docker image
                 sh '''
