@@ -98,6 +98,7 @@ pipeline {
                         sh '''
                             export DOCKER_REGISTRY=n59k7749.c1.de1.container-registry.ovh.net
                             export DOCKER_ORG=dev/ralfs/strimzi-test # REMOVE THIS
+                            export DOCKER_TAG=0.46.0
                             make docker_push
                         '''
                     }
