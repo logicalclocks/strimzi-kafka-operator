@@ -84,7 +84,7 @@ pipeline {
                         // Set the Docker registry (TODO: have to get it from image builder)
                         sh '''
                             export DOCKER_REGISTRY=n59k7749.c1.de1.container-registry.ovh.net
-                            export DOCKER_ORG=strimzi-test # REMOVE THIS
+                            export DOCKER_ORG=dev/ralfs/strimzi-test # REMOVE THIS
                         '''
 
                         // Build the Docker image
