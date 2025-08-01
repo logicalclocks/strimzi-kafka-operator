@@ -72,6 +72,16 @@ pipeline {
                 sh '''
                     make MVN_ARGS='-DskipTests' java_install
                 '''
+
+                sh '''
+                    echo "Listing artifacts/binaries/"
+                    find artifacts/binaries -type f || echo "No artifacts found"
+                '''
+
+                sh '''
+                    echo "Listing all zip files in workspace:"
+                    find . -name '*.zip'
+                '''
             }
         }
         stage('Build and push images') {
@@ -79,6 +89,16 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
                     script {
                         new ImageBuilder(this)
+
+                        sh '''
+                            echo "Listing artifacts/binaries/"
+                            find artifacts/binaries -type f || echo "No artifacts found"
+                        '''
+
+                        sh '''
+                            echo "Listing all zip files in workspace:"
+                            find . -name '*.zip'
+                        '''
 
                         // Build the Docker image
                         sh '''
