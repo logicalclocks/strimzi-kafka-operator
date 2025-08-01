@@ -11,7 +11,35 @@ pipeline {
                 checkout scm
             }
         }
-        stage("Build strimzi java") {
+        stage("Java install hops-kafka-authorizer") {
+            agent {
+                docker {
+                    image 'maven:3.8.5-openjdk-17-slim'
+                    args '--user=root -v $HOME/.m2:/root/.m2'
+                }
+            }
+            steps {
+                // Install dependencies
+                sh '''
+                    apt-get update && apt-get install -y git
+                '''
+
+                // Get the authorizer (TODO: when pr is merged use existing jar)
+                sh '''
+                    rm -rf hops-kafka-authorizer
+                    git clone --branch HWORKS-2215 --single-branch https://github.com/bubriks/hops-kafka-authorizer.git
+                '''
+
+                dir('hops-kafka-authorizer') {
+                    sh 'mvn clean install'
+                    sh 'mv target/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar /tmp/hops-kafka-authorizer.jar'
+                }
+
+                // get kafka authorizer
+                // sh "curl -L -o /tmp/hops-kafka-authorizer.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
+            }
+        }
+        stage("Java install strimzi") {
             agent {
                 docker {
                     image 'maven:3.8.5-openjdk-17-slim'
@@ -22,13 +50,6 @@ pipeline {
                 // Install dependencies
                 sh '''
                     apt-get update && apt-get install -y make git zip
-                '''
-
-                sh '''
-                    rm -rf hops-kafka-authorizer
-                    git clone --branch HWORKS-2215 --single-branch https://github.com/bubriks/hops-kafka-authorizer.git
-                    cd hops-kafka-authorizer
-                    mvn clean install
                 '''
 
                 // Install docker
@@ -59,9 +80,6 @@ pipeline {
                     chmod +x /usr/local/bin/helm
                 '''
 
-                // get kafka authorizer
-                sh "curl -L -o /tmp/hops-kafka-authorizer.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
-
                 // Java build
                 sh '''
                     make MVN_ARGS='-DskipTests' java_install
@@ -74,10 +92,23 @@ pipeline {
                     script {
                         new ImageBuilder(this)
 
-                        // Build the Docker image
-                        sh '''
-                            make docker_build
-                        '''
+                        dir('docker-images') {
+                            // Build the Docker image
+                            sh '''
+                                make docker_build
+                            '''
+
+                            // Set the Docker registry (TODO: have to get it from image builder)
+                            sh '''
+                                export DOCKER_REGISTRY=n59k7749.c1.de1.container-registry.ovh.net
+                                export DOCKER_ORG=dev/ralfs/strimzi-test # REMOVE THIS
+                            '''
+
+                            // Build the Docker image
+                            sh '''
+                                make docker_push
+                            '''
+                        }
                     }
                 }
             }
