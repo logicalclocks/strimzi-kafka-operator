@@ -19,11 +19,6 @@ pipeline {
                 }
             }
             steps {
-                // Clean previous build
-                sh '''
-                    make clean
-                '''
-
                 // Install dependencies
                 sh '''
                     apt-get update && apt-get install -y make git zip
@@ -64,6 +59,11 @@ pipeline {
                     cd hops-kafka-authorizer
                     mvn clean install
                     cd ..
+                '''
+
+                // Clean previous build
+                sh '''
+                    make clean
                 '''
 
                 // get kafka authorizer
