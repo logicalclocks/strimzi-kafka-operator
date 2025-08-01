@@ -35,7 +35,6 @@ pipeline {
                 sh '''
                     curl -fsSL https://get.docker.com -o get-docker.sh
                     sh get-docker.sh
-                    systemctl start docker
                 '''
 
                 // Install shellcheck for shell script linting
@@ -67,11 +66,6 @@ pipeline {
                 sh '''
                     make MVN_ARGS='-DskipTests' java_install
                 '''
-
-                // Build the Docker image
-                sh '''
-                    make docker_build
-                '''
             }
         }
         stage('Push images') {
@@ -80,9 +74,14 @@ pipeline {
                     script {
                         new ImageBuilder(this)
 
+                        // Build the Docker image
                         sh '''
-                            docker tag strimzi/operator:latest dev5.devnet.hops.works:5043/ralfs_mini_registry/strimzi/operator:0.46.0
-                            docker push dev5.devnet.hops.works:5043/ralfs_mini_registry/strimzi/operator:0.46.0
+                            make docker_build
+                        '''
+
+                        sh '''
+                            docker tag strimzi/operator:latest n59k7749.c1.de1.container-registry.ovh.net/strimzi/operator:0.46.0
+                            docker push n59k7749.c1.de1.container-registry.ovh.net/strimzi/operator:0.46.0
                         '''
                     }
                 }
