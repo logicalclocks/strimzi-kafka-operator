@@ -11,7 +11,7 @@ pipeline {
                 checkout scm
             }
         }
-        stage("Build strimzi") {
+        stage("Java install strimzi") {
             agent {
                 docker {
                     image 'maven:3.8.5-openjdk-17-slim'
@@ -24,11 +24,13 @@ pipeline {
                     apt-get update && apt-get install -y make git zip
                 '''
 
+                // Get the authorizer (TODO: when pr is merged use existing jar)
                 sh '''
                     rm -rf hops-kafka-authorizer
                     git clone --branch HWORKS-2215 --single-branch https://github.com/bubriks/hops-kafka-authorizer.git
                     cd hops-kafka-authorizer
                     mvn clean install
+                    cd ..
                 '''
 
                 // Install docker
@@ -68,7 +70,7 @@ pipeline {
                 '''
             }
         }
-        stage('Push images') {
+        stage('Build and push images') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
                     script {
@@ -79,9 +81,15 @@ pipeline {
                             make docker_build
                         '''
 
+                        // Set the Docker registry (TODO: have to get it from image builder)
                         sh '''
-                            docker tag strimzi/operator:latest n59k7749.c1.de1.container-registry.ovh.net/strimzi/operator:0.46.0
-                            docker push n59k7749.c1.de1.container-registry.ovh.net/strimzi/operator:0.46.0
+                            export DOCKER_REGISTRY=n59k7749.c1.de1.container-registry.ovh.net
+                            export DOCKER_ORG=strimzi-test # REMOVE THIS
+                        '''
+
+                        // Build the Docker image
+                        sh '''
+                            make docker_push
                         '''
                     }
                 }
