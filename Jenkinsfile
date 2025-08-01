@@ -56,14 +56,12 @@ pipeline {
                 sh '''
                     rm -rf hops-kafka-authorizer
                     git clone --branch HWORKS-2215 --single-branch https://github.com/bubriks/hops-kafka-authorizer.git
-                    cd hops-kafka-authorizer
-                    mvn clean install
                 '''
 
-                // Clean previous build
-                sh '''
-                    make clean
-                '''
+                dir('hops-kafka-authorizer') {
+                    sh 'mvn clean install'
+                    sh 'mv target/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar /tmp/hops-kafka-authorizer.jar'
+                }
 
                 // get kafka authorizer
                 // sh "curl -L -o /tmp/hops-kafka-authorizer.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
@@ -71,16 +69,6 @@ pipeline {
                 // Java build
                 sh '''
                     make MVN_ARGS='-DskipTests' java_install
-                '''
-
-                sh '''
-                    echo "Listing artifacts/binaries/"
-                    find artifacts/binaries -type f || echo "No artifacts found"
-                '''
-
-                sh '''
-                    echo "Listing all zip files in workspace:"
-                    find . -name '*.zip'
                 '''
             }
         }
@@ -90,31 +78,23 @@ pipeline {
                     script {
                         new ImageBuilder(this)
 
-                        sh '''
-                            echo "Listing artifacts/binaries/"
-                            find artifacts/binaries -type f || echo "No artifacts found"
-                        '''
+                        dir('docker-images') {
+                            // Build the Docker image
+                            sh '''
+                                make docker_build
+                            '''
 
-                        sh '''
-                            echo "Listing all zip files in workspace:"
-                            find . -name '*.zip'
-                        '''
+                            // Set the Docker registry (TODO: have to get it from image builder)
+                            sh '''
+                                export DOCKER_REGISTRY=n59k7749.c1.de1.container-registry.ovh.net
+                                export DOCKER_ORG=dev/ralfs/strimzi-test # REMOVE THIS
+                            '''
 
-                        // Build the Docker image
-                        sh '''
-                            make docker_build
-                        '''
-
-                        // Set the Docker registry (TODO: have to get it from image builder)
-                        sh '''
-                            export DOCKER_REGISTRY=n59k7749.c1.de1.container-registry.ovh.net
-                            export DOCKER_ORG=dev/ralfs/strimzi-test # REMOVE THIS
-                        '''
-
-                        // Build the Docker image
-                        sh '''
-                            make docker_push
-                        '''
+                            // Build the Docker image
+                            sh '''
+                                make docker_push
+                            '''
+                        }
                     }
                 }
             }
