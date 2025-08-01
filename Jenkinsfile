@@ -85,6 +85,7 @@ pipeline {
                 '''
 
                 sh '''
+                    pwd
                     ls docker-images/artifacts/binaries/
                 '''
             }
@@ -96,6 +97,9 @@ pipeline {
                         new ImageBuilder(this)
 
                         sh '''
+                            pwd
+                            ls docker-images/
+                            ls docker-images/artifacts/
                             ls docker-images/artifacts/binaries/
                         '''
 
