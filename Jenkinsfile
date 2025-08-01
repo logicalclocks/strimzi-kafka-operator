@@ -88,12 +88,16 @@ pipeline {
                     pwd
                     ls docker-images/artifacts/binaries/
                 '''
+
+                stash name: 'docker-images', includes: 'docker-images/**'
             }
         }
         stage('Build and push images') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
                     script {
+                        unstash 'docker-images'
+
                         new ImageBuilder(this)
 
                         sh '''
