@@ -19,6 +19,11 @@ pipeline {
                 }
             }
             steps {
+                // Clean previous build
+                sh '''
+                    make clean
+                '''
+
                 // Install dependencies
                 sh '''
                     apt-get update && apt-get install -y make git zip
