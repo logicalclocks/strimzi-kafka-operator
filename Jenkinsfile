@@ -24,15 +24,6 @@ pipeline {
                     apt-get update && apt-get install -y make git zip
                 '''
 
-                // Get the authorizer (TODO: when pr is merged use existing jar)
-                sh '''
-                    rm -rf hops-kafka-authorizer
-                    git clone --branch HWORKS-2215 --single-branch https://github.com/bubriks/hops-kafka-authorizer.git
-                    cd hops-kafka-authorizer
-                    mvn clean install
-                    cd ..
-                '''
-
                 // Install docker
                 sh '''
                     curl -fsSL https://get.docker.com -o get-docker.sh
@@ -61,8 +52,17 @@ pipeline {
                     chmod +x /usr/local/bin/helm
                 '''
 
+                // Get the authorizer (TODO: when pr is merged use existing jar)
+                sh '''
+                    rm -rf hops-kafka-authorizer
+                    git clone --branch HWORKS-2215 --single-branch https://github.com/bubriks/hops-kafka-authorizer.git
+                    cd hops-kafka-authorizer
+                    mvn clean install
+                    cd ..
+                '''
+
                 // get kafka authorizer
-                sh "curl -L -o /tmp/hops-kafka-authorizer.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
+                // sh "curl -L -o /tmp/hops-kafka-authorizer.jar https://repo.hops.works/master/hops-kafka-authorizer/4.0.0-SNAPSHOT/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar"
 
                 // Java build
                 sh '''
