@@ -32,7 +32,6 @@ pipeline {
 
                 dir('hops-kafka-authorizer') {
                     sh 'mvn clean install'
-                    sh 'mv target/hops-kafka-authorizer-4.0.0-SNAPSHOT.jar /tmp/hops-kafka-authorizer.jar'
                 }
 
                 // get kafka authorizer
