@@ -103,7 +103,7 @@ pipeline {
                         // Build the Docker image
                         // Set the Docker registry (TODO: have to get it from image builder)
                         sh '''
-                            export DOCKER_REGISTRY=n59k7749.c1.de1.container-registry.ovh.net
+                            export DOCKER_REGISTRY=dev-docker.hops.works
                             export DOCKER_ORG=dev/ralfs/strimzi-test # REMOVE THIS
                             make docker_push
                         '''
