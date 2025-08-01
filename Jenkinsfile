@@ -95,6 +95,10 @@ pipeline {
                     script {
                         new ImageBuilder(this)
 
+                        sh '''
+                            ls docker-images/artifacts/binaries/
+                        '''
+
                         // Build the Docker image
                         sh '''
                             make docker_build
