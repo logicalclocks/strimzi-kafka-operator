@@ -83,6 +83,10 @@ pipeline {
                 sh '''
                     make MVN_ARGS='-DskipTests' java_install
                 '''
+
+                sh '''
+                    ls docker-images/artifacts/binaries/
+                '''
             }
         }
         stage('Build and push images') {
@@ -91,23 +95,21 @@ pipeline {
                     script {
                         new ImageBuilder(this)
 
-                        dir('docker-images') {
-                            // Build the Docker image
-                            sh '''
-                                make docker_build
-                            '''
+                        // Build the Docker image
+                        sh '''
+                            make docker_build
+                        '''
 
-                            // Set the Docker registry (TODO: have to get it from image builder)
-                            sh '''
-                                export DOCKER_REGISTRY=n59k7749.c1.de1.container-registry.ovh.net
-                                export DOCKER_ORG=dev/ralfs/strimzi-test # REMOVE THIS
-                            '''
+                        // Set the Docker registry (TODO: have to get it from image builder)
+                        sh '''
+                            export DOCKER_REGISTRY=n59k7749.c1.de1.container-registry.ovh.net
+                            export DOCKER_ORG=dev/ralfs/strimzi-test # REMOVE THIS
+                        '''
 
-                            // Build the Docker image
-                            sh '''
-                                make docker_push
-                            '''
-                        }
+                        // Build the Docker image
+                        sh '''
+                            make docker_push
+                        '''
                     }
                 }
             }
