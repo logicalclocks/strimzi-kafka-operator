@@ -52,15 +52,8 @@ pipeline {
                     chmod +x /usr/local/bin/helm
                 '''
 
-                // Get and install kafka authorizer
+                // Get kafka authorizer
                 sh "curl -L -o /tmp/hops-kafka-authorizer.jar https://repo.hops.works/master/hops-kafka-authorizer/4.6.0-SNAPSHOT/hops-kafka-authorizer-4.6.0-SNAPSHOT.jar"
-                sh "rm -rf ~/.m2/repository/io/hops/kafka"
-                sh "mvn install:install-file \
-                    -Dfile=/tmp/hops-kafka-authorizer.jar \
-                    -DgroupId=hops.io.kafka \
-                    -DartifactId=hops-kafka-authorizer \
-                    -Dversion=4.6.0-SNAPSHOT \
-                    -Dpackaging=jar"
 
                 // Java build
                 sh '''
