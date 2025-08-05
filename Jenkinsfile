@@ -68,6 +68,10 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
                     script {
+                        sh '''
+                            make clean
+                        '''
+
                         unstash 'docker-images'
 
                         def version = readFile("release.version").trim()
