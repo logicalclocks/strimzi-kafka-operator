@@ -52,14 +52,8 @@ pipeline {
                     chmod +x /usr/local/bin/helm
                 '''
 
-                // Get and install kafka authorizer
+                // Get kafka authorizer
                 sh "curl -L -o /tmp/hops-kafka-authorizer.jar https://repo.hops.works/master/hops-kafka-authorizer/4.6.0-SNAPSHOT/hops-kafka-authorizer-4.6.0-SNAPSHOT.jar"
-                sh "mvn install:install-file \
-                    -Dfile=/tmp/hops-kafka-authorizer.jar \
-                    -DgroupId=hops.io.kafka \
-                    -DartifactId=hops-kafka-authorizer \
-                    -Dversion=4.6.0-SNAPSHOT \
-                    -Dpackaging=jar"
 
                 // Java build
                 sh '''
@@ -74,6 +68,10 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'a0770738-4ef3-4acc-a6ba-097ee6c85b44', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
                     script {
+                        sh '''
+                            make clean
+                        '''
+
                         unstash 'docker-images'
 
                         def version = readFile("release.version").trim()
