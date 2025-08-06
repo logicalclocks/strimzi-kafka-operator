@@ -23,7 +23,6 @@ pipeline {
                             docker rm extract-container
                         """
 
-                        // Build the Docker image using docker-images
                         sh '''
                             make docker_build
                         '''
