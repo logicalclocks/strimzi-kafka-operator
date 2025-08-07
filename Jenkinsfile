@@ -19,7 +19,7 @@ pipeline {
                         sh """
                             docker build -t strimzi/image-builder:1.0 .
                             docker create --name extract-container strimzi/image-builder:1.0
-                            docker cp extract-container:/app/docker-images ./docker-images
+                            docker cp extract-container:/docker-images ./docker-images
                             docker rm extract-container
                         """
 

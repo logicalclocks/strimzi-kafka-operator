@@ -52,6 +52,4 @@ RUN make MVN_ARGS='-DskipTests' java_install
 # ─────────────────────────────────────────────────────────────────────────────
 FROM alpine AS final
 
-WORKDIR /app
-
 COPY --from=build-strimzi /app/docker-images /docker-images
