@@ -8,7 +8,7 @@
   },
   {
     "name": "strimzi/operator",
-    "version": "env:VERSION",
+    "version": "env:STRIMZI_VERSION",
     "dockerFile": "docker-images/operator/Dockerfile",
     "variables": ["STRIMZI_VERSION"],
     "extraDockerArgs": "--build-arg strimzi_version=${STRIMZI_VERSION}"
@@ -26,7 +26,7 @@
   },
   {
     "name": "strimzi/maven-builder",
-    "version": "env:VERSION",
+    "version": "env:STRIMZI_VERSION",
     "dockerFile": "docker-images/maven-builder/Dockerfile",
     "variables": [
       "STRIMZI_VERSION"
