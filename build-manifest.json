@@ -1,12 +1,5 @@
 [
   {
-    "name": "strimzi/base",
-    "version": "latest",
-    "dockerFile": "docker-images/base/Dockerfile",
-    "variables": ["STRIMZI_VERSION"],
-    "extraDockerArgs": "--build-arg strimzi_version=${STRIMZI_VERSION}"
-  },
-  {
     "name": "strimzi/operator",
     "version": "env:STRIMZI_VERSION",
     "dockerFile": "docker-images/operator/Dockerfile",

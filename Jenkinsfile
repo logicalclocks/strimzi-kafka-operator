@@ -41,6 +41,11 @@ pipeline {
                         def kafka_version = "3.9.0"
                         def libs_version = "3.9.x"
 
+                        // Create strimzi base image (no need to push it, it is used by other images)
+                        sh """
+                            docker build --build-arg strimzi_version=${strimzi_version} -t strimzi/base:latest ./docker-images/base
+                        """
+
                         // Build the Docker image
                         withEnv([
                             "STRIMZI_VERSION=${strimzi_version}",
