@@ -33,7 +33,7 @@ pipeline {
                         """
 
                         // variables for the Docker image
-                        def version = readFile("release.version").trim()
+                        def strimzi_version = readFile("release.version").trim()
                         def kafka_version = "3.9.0"
                         def libs_version = "3.9.x"
 
