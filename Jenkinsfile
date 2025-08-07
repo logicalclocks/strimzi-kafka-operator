@@ -56,7 +56,7 @@ pipeline {
                             reg.auth()
 
                             // Get registryUrl
-                            def fullImage = reg.buildImageName("", "").replaceFirst(/\/:$/, '')
+                            def registryUrl = reg.buildImageName("", "").replaceFirst(/\/:$/, '')
 
                             // Push the image
                             sh """
