@@ -43,7 +43,7 @@ pipeline {
 
                         // Create strimzi base image (no need to push it, it is used by other images)
                         sh """
-                            docker build --build-arg strimzi_version=${strimzi_version} -t strimzi/base:latest ./docker-images/base
+                            docker build --build-arg strimzi_version=${strimzi_version} -t docker.io/strimzi/base:latest ./docker-images/base
                         """
 
                         // Build the Docker image
