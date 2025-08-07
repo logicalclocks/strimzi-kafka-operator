@@ -45,7 +45,7 @@ FROM build-env AS build-strimzi
 
 WORKDIR /app
 
-RUN make MVN_ARGS='-Dmaven.test.skip=true' java_build
+RUN make MVN_ARGS='-Dmaven.test.skip=true' java_install
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 3: Extract docker images
