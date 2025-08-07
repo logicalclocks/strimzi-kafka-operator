@@ -18,8 +18,17 @@ pipeline {
                         // Build the extract image and get the docker-images
                         sh """
                             docker build -t strimzi/image-builder:1.0 .
+
+                            # Remove the container if it already exists
+                            docker rm -f extract-container 2>/dev/null || true
+
+                            # Create container (doesn't run it)
                             docker create --name extract-container strimzi/image-builder:1.0
+
+                            # Copy files out
                             docker cp extract-container:/docker-images ./docker-images
+
+                            # Clean up
                             docker rm extract-container
                         """
 
