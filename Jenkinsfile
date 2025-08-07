@@ -18,34 +18,26 @@ pipeline {
                         // Build the extract image and get the docker-images
                         sh """
                             docker build -t strimzi/image-builder:1.0 .
-                            docker run --name extract-container strimzi/image-builder:1.0
+                            docker create --name extract-container strimzi/image-builder:1.0
                             docker cp extract-container:/app/docker-images ./docker-images
                             docker rm extract-container
                         """
 
-                        sh '''
-                            make docker_build
-                        '''
-
+                        // variables for the Docker image
                         def version = readFile("release.version").trim()
-                        def builder = new ImageBuilder(this)
+                        def kafka_version = "3.9.0"
+                        def libs_version = "3.9.x"
 
-                        // Push the Docker image
-                        builder.REGISTRIES.each { reg ->
-                            // Authenticate to the registry
-                            reg.auth()
-
-                            // Get registryUrl
-                            def fullImage = reg.buildImageName("dummy", "latest")
-                            def registryUrl = fullImage.split('/')[0]
-
-                            // Push the image
-                            sh """
-                                export DOCKER_REGISTRY=${registryUrl}
-                                export DOCKER_ORG=strimzi
-                                export DOCKER_TAG=${version}
-                                make docker_push
-                            """
+                        // Build the Docker image
+                        withEnv([
+                            "STRIMZI_VERSION=${strimzi_version}",
+                            "KAFKA_VERSION=${kafka_version}",
+                            "LIBS_VERSION=${libs_version}",
+                            "KAFKA_DOCKER_TAG=${strimzi_version}-kafka-${kafka_version}"
+                        ]) {
+                            def builder = new ImageBuilder(this)
+                            def m = readFile "${env.WORKSPACE}/build-manifest.json"
+                            builder.run(m)
                         }
                     }
                 }

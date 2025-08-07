@@ -41,9 +41,17 @@ RUN curl -L -o /tmp/hops-kafka-authorizer.jar https://repo.hops.works/master/hop
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2: Install strimzi-kafka-operator
 # ─────────────────────────────────────────────────────────────────────────────
-FROM build-env AS final
+FROM build-env AS build-strimzi
 
 WORKDIR /app
 
-# Java build
-CMD ["sh", "-c", "make MVN_ARGS='-DskipTests' java_install"]
+RUN make MVN_ARGS='-DskipTests' java_install
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage 3: Extract docker images
+# ─────────────────────────────────────────────────────────────────────────────
+FROM alpine AS final
+
+WORKDIR /app
+
+COPY --from=build-strimzi /app/docker-images /docker-images
