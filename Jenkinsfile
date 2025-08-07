@@ -20,8 +20,8 @@ pipeline {
                             # Remove container if it already exists
                             docker rm -f extract-container 2>/dev/null || true
 
-                            # Remove all images matching the name (to save space)
-                            docker images -q strimzi/image-builder | xargs -r docker rmi -f
+                            # Remove all dangling images (to save space)
+                            docker image prune
 
                             # Build the image
                             docker build -t strimzi/image-builder:1.0 .
@@ -36,26 +36,35 @@ pipeline {
                             docker rm -f extract-container
                         """
 
-                        // variables for the Docker image
-                        def strimzi_version = readFile("release.version").trim()
-                        def kafka_version = "3.9.0"
-                        def libs_version = "3.9.x"
+                        // INFO: I tried to use build-manifest.json but strimzi creates mutiple images
+                        // and it will be hard to maintain it. Also some images like strimzi/base
+                        // are meant to be created and used only locally to create other images, 
+                        // but current image builder doesnt allow it (it tries to download it).
+
+                        def version = readFile("release.version").trim()
 
                         // Build the Docker image
-                        withEnv([
-                            "STRIMZI_VERSION=${strimzi_version}",
-                            "KAFKA_VERSION=${kafka_version}",
-                            "LIBS_VERSION=${libs_version}",
-                            "KAFKA_DOCKER_TAG=${strimzi_version}-kafka-${kafka_version}"
-                        ]) {
-                            // Create strimzi base image (no need to push it, it is used by other images)
-                            sh """
-                                docker buildx build --build-arg strimzi_version=${strimzi_version} -t strimzi/base:latest ./docker-images/base
-                            """
+                        sh '''
+                            make docker_build
+                        '''
 
-                            def builder = new ImageBuilder(this)
-                            def m = readFile "${env.WORKSPACE}/build-manifest.json"
-                            builder.run(m)
+                        def builder = new ImageBuilder(this)
+
+                        // Push the Docker image
+                        builder.REGISTRIES.each { reg ->
+                            // Authenticate to the registry
+                            reg.auth()
+
+                            // Get registryUrl
+                            def fullImage = reg.buildImageName("", "").replaceFirst(/\/:$/, '')
+
+                            // Push the image
+                            sh """
+                                export DOCKER_REGISTRY=${registryUrl}
+                                export DOCKER_ORG=strimzi
+                                export DOCKER_TAG=${version}
+                                make docker_push
+                            """
                         }
                     }
                 }
