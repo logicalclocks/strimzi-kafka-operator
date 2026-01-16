@@ -49,9 +49,6 @@ pipeline {
 
                         // Build the Docker image
                         sh """
-                            export DOCKER_REGISTRY=${registryUrl}
-                            export DOCKER_ORG=strimzi
-                            export DOCKER_TAG=${version}
                             make docker_build
                         """
 
@@ -71,6 +68,7 @@ pipeline {
                                 export DOCKER_ORG=strimzi
                                 export DOCKER_TAG=${version}
                                 
+                                make docker_tag
                                 ${params.PUSH_UPSTREAM_TAGGED_IMAGES ? 'make docker_push' : 'echo "Skipping pushing upstream tagged images"'}
 
                                 make -f Makefile.hopsworks all
