@@ -5,6 +5,10 @@ import com.logicalclocks.jenkins.k8s.ImageBuilder
 pipeline {
   agent { label 'local' }
 
+  parameters {
+    booleanParam(name: 'PUSH_UPSTREAM_TAGGED_IMAGES', defaultValue: true, description: 'Push Strimzi images with the upstream version. Disable if you only want to push Hopsworks tagged images')
+  }
+
   stages {
         stage('Clone repository') {
             steps {
@@ -44,9 +48,12 @@ pipeline {
                         def version = readFile("release.version").trim()
 
                         // Build the Docker image
-                        sh '''
+                        sh """
+                            export DOCKER_REGISTRY=${registryUrl}
+                            export DOCKER_ORG=strimzi
+                            export DOCKER_TAG=${version}
                             make docker_build
-                        '''
+                        """
 
                         def builder = new ImageBuilder(this)
 
@@ -63,7 +70,10 @@ pipeline {
                                 export DOCKER_REGISTRY=${registryUrl}
                                 export DOCKER_ORG=strimzi
                                 export DOCKER_TAG=${version}
-                                make docker_push
+                                
+                                ${params.PUSH_UPSTREAM_TAGGED_IMAGES ? 'make docker_push' : 'echo "Skipping pushing upstream tagged images"'}
+
+                                make -f Makefile.hopsworks all
                             """
                         }
                     }
