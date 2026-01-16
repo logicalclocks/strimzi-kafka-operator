@@ -34,7 +34,7 @@ pipeline {
                             docker create --name extract-container strimzi/image-builder:1.0
 
                             # Copy out the generated docker images
-                            docker cp extract-container:/docker-images ./docker-images
+                            docker cp extract-container:/docker-images/. ./docker-images
 
                             # Remove container
                             docker rm -f extract-container

@@ -13,6 +13,7 @@ TOPDIR=$(dir $(lastword $(MAKEFILE_LIST)))
 DOCKER_CMD         ?= docker
 DOCKER_REGISTRY    ?= docker.io
 DOCKER_ORG         ?= strimzi
+BUILD_TAG          ?= latest
 
 # Read versions from files
 RELEASE_VERSION    ?= $(shell cat $(TOPDIR)/release.version | tr -d '[:space:]')
@@ -41,16 +42,16 @@ docker_push: docker_push_simple docker_push_kafka
 docker_retag_simple:
 	@echo "Re-tagging simple images with Hopsworks version: $(HOPSWORKS_VERSION)"
 	@for image in $(SIMPLE_IMAGES); do \
-		echo "Re-tagging strimzi/$$image:$(RELEASE_VERSION) -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)"; \
-		$(DOCKER_CMD) tag strimzi/$$image:$(RELEASE_VERSION) $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG); \
+		echo "Re-tagging strimzi/$$image:$(BUILD_TAG) -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)"; \
+		$(DOCKER_CMD) tag strimzi/$$image:$(BUILD_TAG) $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG); \
 	done
 
 # Re-tag Kafka images for all supported Kafka versions
 docker_retag_kafka:
 	@echo "Re-tagging Kafka images with Hopsworks version: $(HOPSWORKS_VERSION)"
 	@for kafka_version in $(KAFKA_VERSIONS); do \
-		echo "Re-tagging strimzi/kafka:$(RELEASE_VERSION)-kafka-$$kafka_version -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version"; \
-		$(DOCKER_CMD) tag strimzi/kafka:$(RELEASE_VERSION)-kafka-$$kafka_version $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version; \
+		echo "Re-tagging strimzi/kafka:build-kafka-$$kafka_version -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version"; \
+		$(DOCKER_CMD) tag strimzi/kafka:build-kafka-$$kafka_version $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version; \
 	done
 
 # Push simple images
@@ -71,6 +72,7 @@ docker_push_kafka:
 
 # Show what would be tagged (dry run)
 show:
+	@echo "Build Tag:   $(BUILD_TAG)"
 	@echo "Release Version:   $(RELEASE_VERSION)"
 	@echo "Hopsworks Version: $(HOPSWORKS_VERSION)"
 	@echo "Combined Tag:      $(HOPSWORKS_TAG)"
@@ -79,10 +81,10 @@ show:
 	@echo ""
 	@echo "Simple images to re-tag:"
 	@for image in $(SIMPLE_IMAGES); do \
-		echo "  strimzi/$$image:$(RELEASE_VERSION) -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)"; \
+		echo "  strimzi/$$image:$(BUILD_TAG) -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)"; \
 	done
 	@echo ""
 	@echo "Kafka images to re-tag:"
 	@for kafka_version in $(KAFKA_VERSIONS); do \
-		echo "  strimzi/kafka:$(RELEASE_VERSION)-kafka-$$kafka_version -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version"; \
+		echo "  strimzi/kafka:build-kafka-$$kafka_version -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version"; \
 	done
