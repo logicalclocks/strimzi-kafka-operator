@@ -5,6 +5,10 @@ import com.logicalclocks.jenkins.k8s.ImageBuilder
 pipeline {
   agent { label 'local' }
 
+  parameters {
+    booleanParam(name: 'PUSH_UPSTREAM_TAGGED_IMAGES', defaultValue: true, description: 'Push Strimzi images with the upstream version. Disable if you only want to push Hopsworks tagged images')
+  }
+
   stages {
         stage('Clone repository') {
             steps {
@@ -29,8 +33,8 @@ pipeline {
                             # Create container
                             docker create --name extract-container strimzi/image-builder:1.0
 
-                            # Copy out the generated docker images
-                            docker cp extract-container:/docker-images ./docker-images
+                            # Copy out the generated docker images (using tar to avoid permission issues)
+                            docker cp extract-container:/docker-images - | tar -xf - --strip-components=1 -C ./docker-images
 
                             # Remove container
                             docker rm -f extract-container
@@ -44,9 +48,9 @@ pipeline {
                         def version = readFile("release.version").trim()
 
                         // Build the Docker image
-                        sh '''
+                        sh """
                             make docker_build
-                        '''
+                        """
 
                         def builder = new ImageBuilder(this)
 
@@ -63,7 +67,11 @@ pipeline {
                                 export DOCKER_REGISTRY=${registryUrl}
                                 export DOCKER_ORG=strimzi
                                 export DOCKER_TAG=${version}
-                                make docker_push
+                                
+                                make docker_tag
+                                ${params.PUSH_UPSTREAM_TAGGED_IMAGES ? 'make docker_push' : 'echo "Skipping pushing upstream tagged images"'}
+
+                                make -f Makefile.hopsworks all
                             """
                         }
                     }
