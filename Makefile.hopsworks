@@ -1,12 +1,15 @@
 # Makefile.hopsworks - Re-tag Strimzi images with Hopsworks version suffix
 #
-# This Makefile re-tags existing Strimzi images with a Hopsworks-specific version suffix
-# to track security fixes in base images without changing Strimzi code.
+# Supports multi-architecture builds with manifest lists.
 #
 # Usage:
-#   make -f Makefile.hopsworks docker_retag       # Re-tag all images locally
-#   make -f Makefile.hopsworks docker_push        # Push re-tagged images to registry
-#   make -f Makefile.hopsworks all                # Re-tag and push
+#   Per-architecture (call once per arch, then create manifests):
+#     DOCKER_ARCHITECTURE=amd64 make -f Makefile.hopsworks docker_retag docker_push
+#     DOCKER_ARCHITECTURE=arm64 make -f Makefile.hopsworks docker_retag docker_push
+#     MANIFEST_ARCHITECTURES=amd64,arm64 make -f Makefile.hopsworks docker_amend_manifest
+#
+#   Single architecture (legacy):
+#     make -f Makefile.hopsworks docker_retag docker_push
 
 TOPDIR=$(dir $(lastword $(MAKEFILE_LIST)))
 
@@ -22,13 +25,25 @@ HOPSWORKS_VERSION  ?= $(shell cat $(TOPDIR)/hopsworks.version | tr -d '[:space:]
 # Combined version tag: e.g., 0.45.1-h1
 HOPSWORKS_TAG      = $(RELEASE_VERSION)-$(HOPSWORKS_VERSION)
 
+# Multi-architecture support
+ifdef DOCKER_ARCHITECTURE
+  DOCKER_PLATFORM_TAG_SUFFIX = -$(DOCKER_ARCHITECTURE)
+endif
+
+# Comma-separated list of architectures to include in manifest lists
+MANIFEST_ARCHITECTURES ?= $(DOCKER_ARCHITECTURE)
+
 # Get supported Kafka versions from kafka-versions.yaml
-KAFKA_VERSIONS     = $(shell yq eval '.[] | select(.supported == true) | .version' $(TOPDIR)/kafka-versions.yaml)
+KAFKA_VERSIONS     := $(shell yq eval '.[] | select(.supported == true) | .version' $(TOPDIR)/kafka-versions.yaml)
 
 # Simple images (without Kafka version suffix)
 SIMPLE_IMAGES      = operator maven-builder kaniko-executor
 
-.PHONY: all docker_retag docker_push docker_retag_simple docker_retag_kafka docker_push_simple docker_push_kafka
+.PHONY: all docker_retag docker_push docker_amend_manifest \
+        docker_retag_simple docker_retag_kafka \
+        docker_push_simple docker_push_kafka \
+        docker_amend_manifest_simple docker_amend_manifest_kafka \
+        show
 
 all: docker_retag docker_push
 
@@ -38,53 +53,84 @@ docker_retag: docker_retag_simple docker_retag_kafka
 # Push all re-tagged images
 docker_push: docker_push_simple docker_push_kafka
 
-# Re-tag simple images (operator, maven-builder, kaniko-executor)
+# Create and push manifest lists for all images
+docker_amend_manifest: docker_amend_manifest_simple docker_amend_manifest_kafka
+
+# ─── Re-tag ──────────────────────────────────────────────────────────────────
+
 docker_retag_simple:
-	@echo "Re-tagging simple images with Hopsworks version: $(HOPSWORKS_VERSION)"
+	@echo "Re-tagging simple images: $(HOPSWORKS_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX)"
 	@for image in $(SIMPLE_IMAGES); do \
-		echo "Re-tagging strimzi/$$image:$(BUILD_TAG) -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)"; \
-		$(DOCKER_CMD) tag strimzi/$$image:$(BUILD_TAG) $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG); \
+		echo "  strimzi/$$image:$(BUILD_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX) -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX)"; \
+		$(DOCKER_CMD) tag strimzi/$$image:$(BUILD_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX) $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX); \
 	done
 
-# Re-tag Kafka images for all supported Kafka versions
 docker_retag_kafka:
-	@echo "Re-tagging Kafka images with Hopsworks version: $(HOPSWORKS_VERSION)"
+	@echo "Re-tagging Kafka images: $(HOPSWORKS_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX)"
 	@for kafka_version in $(KAFKA_VERSIONS); do \
-		echo "Re-tagging strimzi/kafka:build-kafka-$$kafka_version -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version"; \
-		$(DOCKER_CMD) tag strimzi/kafka:build-kafka-$$kafka_version $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version; \
+		echo "  strimzi/kafka:build-kafka-$$kafka_version$(DOCKER_PLATFORM_TAG_SUFFIX) -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version$(DOCKER_PLATFORM_TAG_SUFFIX)"; \
+		$(DOCKER_CMD) tag strimzi/kafka:build-kafka-$$kafka_version$(DOCKER_PLATFORM_TAG_SUFFIX) $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version$(DOCKER_PLATFORM_TAG_SUFFIX); \
 	done
 
-# Push simple images
+# ─── Push ────────────────────────────────────────────────────────────────────
+
 docker_push_simple:
-	@echo "Pushing simple images with Hopsworks version: $(HOPSWORKS_VERSION)"
+	@echo "Pushing simple images: $(HOPSWORKS_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX)"
 	@for image in $(SIMPLE_IMAGES); do \
-		echo "Pushing $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)"; \
-		$(DOCKER_CMD) push $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG); \
+		echo "  $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX)"; \
+		$(DOCKER_CMD) push $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX); \
 	done
 
-# Push Kafka images for all supported Kafka versions
 docker_push_kafka:
-	@echo "Pushing Kafka images with Hopsworks version: $(HOPSWORKS_VERSION)"
+	@echo "Pushing Kafka images: $(HOPSWORKS_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX)"
 	@for kafka_version in $(KAFKA_VERSIONS); do \
-		echo "Pushing $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version"; \
-		$(DOCKER_CMD) push $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version; \
+		echo "  $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version$(DOCKER_PLATFORM_TAG_SUFFIX)"; \
+		$(DOCKER_CMD) push $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version$(DOCKER_PLATFORM_TAG_SUFFIX); \
 	done
 
-# Show what would be tagged (dry run)
-show:
-	@echo "Build Tag:   $(BUILD_TAG)"
-	@echo "Release Version:   $(RELEASE_VERSION)"
-	@echo "Hopsworks Version: $(HOPSWORKS_VERSION)"
-	@echo "Combined Tag:      $(HOPSWORKS_TAG)"
-	@echo "Docker Registry:   $(DOCKER_REGISTRY)"
-	@echo "Docker Org:        $(DOCKER_ORG)"
-	@echo ""
-	@echo "Simple images to re-tag:"
+# ─── Manifest create and push ───────────────────────────────────────────────
+
+docker_amend_manifest_simple:
+	@echo "Creating and pushing manifest lists for simple images: $(HOPSWORKS_TAG)"
 	@for image in $(SIMPLE_IMAGES); do \
-		echo "  strimzi/$$image:$(BUILD_TAG) -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)"; \
+		echo "  $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)"; \
+		sources="" ; \
+		for arch in $$(echo "$(MANIFEST_ARCHITECTURES)" | tr ',' ' '); do \
+			sources="$$sources $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)-$$arch" ; \
+		done ; \
+		$(DOCKER_CMD) buildx imagetools create -t $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG) $$sources ; \
+	done
+
+docker_amend_manifest_kafka:
+	@echo "Creating and pushing manifest lists for Kafka images: $(HOPSWORKS_TAG)"
+	@for kafka_version in $(KAFKA_VERSIONS); do \
+		echo "  $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version"; \
+		sources="" ; \
+		for arch in $$(echo "$(MANIFEST_ARCHITECTURES)" | tr ',' ' '); do \
+			sources="$$sources $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version-$$arch" ; \
+		done ; \
+		$(DOCKER_CMD) buildx imagetools create -t $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version $$sources ; \
+	done
+
+# ─── Show (dry run) ─────────────────────────────────────────────────────────
+
+show:
+	@echo "Build Tag:              $(BUILD_TAG)"
+	@echo "Release Version:        $(RELEASE_VERSION)"
+	@echo "Hopsworks Version:      $(HOPSWORKS_VERSION)"
+	@echo "Combined Tag:           $(HOPSWORKS_TAG)"
+	@echo "Docker Registry:        $(DOCKER_REGISTRY)"
+	@echo "Docker Org:             $(DOCKER_ORG)"
+	@echo "Architecture:           $(DOCKER_ARCHITECTURE)"
+	@echo "Platform Tag Suffix:    $(DOCKER_PLATFORM_TAG_SUFFIX)"
+	@echo "Manifest Architectures: $(MANIFEST_ARCHITECTURES)"
+	@echo ""
+	@echo "Simple images:"
+	@for image in $(SIMPLE_IMAGES); do \
+		echo "  strimzi/$$image:$(BUILD_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX) -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX)"; \
 	done
 	@echo ""
-	@echo "Kafka images to re-tag:"
+	@echo "Kafka images:"
 	@for kafka_version in $(KAFKA_VERSIONS); do \
-		echo "  strimzi/kafka:build-kafka-$$kafka_version -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version"; \
+		echo "  strimzi/kafka:build-kafka-$$kafka_version$(DOCKER_PLATFORM_TAG_SUFFIX) -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version$(DOCKER_PLATFORM_TAG_SUFFIX)"; \
 	done
