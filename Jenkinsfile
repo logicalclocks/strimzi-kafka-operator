@@ -28,8 +28,12 @@ pipeline {
                         exit 1
                     fi
 
-                    # Register QEMU for cross-platform emulation
-                    docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+                    # Register QEMU binfmt handlers for cross-platform emulation.
+                    # We use kernel-level QEMU instead of "docker buildx create --bootstrap" because
+                    # the Strimzi Makefile relies on per-arch "docker build" + "docker tag" + "docker push",
+                    # which requires images in the local store. A buildx docker-container driver would
+                    # bypass local storage, breaking the tag/push chain.
+                    docker run --rm --privileged multiarch/qemu-user-static:7.2.0-1@sha256:fe60359c92e86a43cc87b3d906006245f77bfc0565676b80004cc666e4feb9f0 --reset -p yes
                 """
             }
         }
@@ -56,10 +60,10 @@ pipeline {
                 """
             }
         }
-        // INFO: I tried to use build-manifest.json but strimzi creates mutiple images
+        // INFO: I tried to use build-manifest.json but strimzi creates multiple images
         // and it will be hard to maintain it. Also some images like strimzi/base
         // are meant to be created and used only locally to create other images,
-        // but current image builder doesnt allow it (it tries to download it).
+        // but current image builder doesn't allow it (it tries to download it).
         stage('Build images for all architectures') {
             steps {
                 script {

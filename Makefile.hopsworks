@@ -34,7 +34,7 @@ endif
 MANIFEST_ARCHITECTURES ?= $(DOCKER_ARCHITECTURE)
 
 # Get supported Kafka versions from kafka-versions.yaml
-KAFKA_VERSIONS     := $(shell yq eval '.[] | select(.supported == true) | .version' $(TOPDIR)/kafka-versions.yaml)
+KAFKA_VERSIONS      = $(shell yq eval '.[] | select(.supported == true) | .version' $(TOPDIR)/kafka-versions.yaml)
 
 # Simple images (without Kafka version suffix)
 SIMPLE_IMAGES      = operator maven-builder kaniko-executor
@@ -43,7 +43,7 @@ SIMPLE_IMAGES      = operator maven-builder kaniko-executor
         docker_retag_simple docker_retag_kafka \
         docker_push_simple docker_push_kafka \
         docker_amend_manifest_simple docker_amend_manifest_kafka \
-        show
+        guard_manifest_architectures show
 
 all: docker_retag docker_push
 
@@ -90,7 +90,13 @@ docker_push_kafka:
 
 # ─── Manifest create and push ───────────────────────────────────────────────
 
-docker_amend_manifest_simple:
+guard_manifest_architectures:
+	@if [ -z "$(MANIFEST_ARCHITECTURES)" ]; then \
+		echo "Error: MANIFEST_ARCHITECTURES is empty. Set MANIFEST_ARCHITECTURES or DOCKER_ARCHITECTURE before running manifest targets." >&2; \
+		exit 1; \
+	fi
+
+docker_amend_manifest_simple: guard_manifest_architectures
 	@echo "Creating and pushing manifest lists for simple images: $(HOPSWORKS_TAG)"
 	@for image in $(SIMPLE_IMAGES); do \
 		echo "  $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)"; \
@@ -101,7 +107,7 @@ docker_amend_manifest_simple:
 		$(DOCKER_CMD) buildx imagetools create -t $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG) $$sources ; \
 	done
 
-docker_amend_manifest_kafka:
+docker_amend_manifest_kafka: guard_manifest_architectures
 	@echo "Creating and pushing manifest lists for Kafka images: $(HOPSWORKS_TAG)"
 	@for kafka_version in $(KAFKA_VERSIONS); do \
 		echo "  $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version"; \
