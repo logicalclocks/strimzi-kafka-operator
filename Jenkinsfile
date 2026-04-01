@@ -9,7 +9,7 @@ pipeline {
   agent { label 'local' }
 
   parameters {
-    booleanParam(name: 'PUSH_UPSTREAM_TAGGED_IMAGES', defaultValue: true, description: 'Push Strimzi images with the upstream version. Disable if you only want to push Hopsworks tagged images')
+    booleanParam(name: 'PUSH_UPSTREAM_TAGGED_IMAGES', defaultValue: false, description: 'Push Strimzi images with the upstream version. Disable if you only want to push Hopsworks tagged images')
   }
 
   stages {
