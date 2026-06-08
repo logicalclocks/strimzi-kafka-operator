@@ -25,6 +25,9 @@ ifdef DOCKER_ARCHITECTURE
   SBOM_DIR=$(TOPDIR)sbom/$(DOCKER_ARCHITECTURE)
 endif
 
+# Comma-separated list of architectures to include in manifest lists (used by docker_amend_manifest)
+MANIFEST_ARCHITECTURES ?= $(DOCKER_ARCHITECTURE)
+
 all: docker_build docker_push
 
 docker_build_default:
@@ -48,12 +51,12 @@ docker_push_default: docker_tag
 docker_save_default:
 	# Saves the container as TGZ file
 	test -d $(ARCHIVE_DIR) || mkdir -p  $(ARCHIVE_DIR)
-	docker save strimzi/$(PROJECT_NAME):$(BUILD_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX) | gzip > $(ARCHIVE_DIR)/$(PROJECT_NAME)-$(BUILD_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX).tar.gz
+	$(DOCKER_CMD) save $(DOCKER_PLATFORM) strimzi/$(PROJECT_NAME):$(BUILD_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX) | gzip > $(ARCHIVE_DIR)/$(PROJECT_NAME)-$(BUILD_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX).tar.gz
 
 .PHONY: docker_load_default
 docker_load_default:
 	# Loads the container as TGZ file
-	docker load < $(ARCHIVE_DIR)/$(PROJECT_NAME)-$(BUILD_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX).tar.gz
+	$(DOCKER_CMD) load < $(ARCHIVE_DIR)/$(PROJECT_NAME)-$(BUILD_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX).tar.gz
 
 .PHONY: docker_delete_archive_default
 docker_delete_archive_default:
@@ -62,13 +65,16 @@ docker_delete_archive_default:
 
 .PHONY: docker_amend_manifest_default
 docker_amend_manifest_default:
-	# Create / Amend the manifest
-	docker manifest create $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(PROJECT_NAME):$(DOCKER_TAG) --amend $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(PROJECT_NAME):$(DOCKER_TAG)$(DOCKER_PLATFORM_TAG_SUFFIX)
-
-.PHONY: docker_push_manifest_default
-docker_push_manifest_default:
-	# Push the manifest to the registry
-	docker manifest push $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(PROJECT_NAME):$(DOCKER_TAG)
+	# Create and push manifest list from per-architecture images using buildx imagetools
+	@if [ -z "$(MANIFEST_ARCHITECTURES)" ]; then \
+		echo "Error: MANIFEST_ARCHITECTURES is empty. Set MANIFEST_ARCHITECTURES or DOCKER_ARCHITECTURE before running manifest targets." >&2; \
+		exit 1; \
+	fi
+	sources="" ; \
+	for arch in $$(echo "$(MANIFEST_ARCHITECTURES)" | tr ',' ' '); do \
+		sources="$$sources $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(PROJECT_NAME):$(DOCKER_TAG)-$$arch" ; \
+	done ; \
+	$(DOCKER_CMD) buildx imagetools create -t $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(PROJECT_NAME):$(DOCKER_TAG) $$sources
 
 .PHONY: docker_sign_manifest_default
 docker_sign_manifest_default:
@@ -77,11 +83,6 @@ docker_sign_manifest_default:
 	MANIFEST_DIGEST=$(shell docker buildx imagetools inspect $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(PROJECT_NAME):$(DOCKER_TAG) --format '{{ json . }}' | jq -r .manifest.digest); \
 	cosign sign --recursive --tlog-upload=false -a author=StrimziCI -a BuildID=$(BUILD_ID) -a Commit=$(BUILD_COMMIT) --key cosign.key $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(PROJECT_NAME)@$$MANIFEST_DIGEST
 	@rm cosign.key
-
-.PHONY: docker_delete_manifest_default
-docker_delete_manifest_default:
-	# Delete the manifest to the registry, ignore the error if manifest doesn't exist
-	docker manifest rm $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(PROJECT_NAME):$(DOCKER_TAG) || true
 
 .PHONY: docker_sbom_default
 docker_sbom_default:

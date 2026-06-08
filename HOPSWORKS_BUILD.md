@@ -12,6 +12,19 @@ If you are running the Jenkins pipeline, consider disabling `PUSH_UPSTREAM_TAGGE
 
 `make -f Makefile.hopsworks show` will print the images to be re-tagged and pushed. It is a **DRY-RUN** operation.
 
-`make -f Makefile.hopsworks docker_retag` will tag the images with the Hopsworks patch version
+### Multi-architecture (amd64 + arm64)
 
-`make -f Makefile.hopsworks docker_push` will push the images
+```bash
+# Tag and push per architecture
+DOCKER_ARCHITECTURE=amd64 make -f Makefile.hopsworks docker_retag docker_push
+DOCKER_ARCHITECTURE=arm64 make -f Makefile.hopsworks docker_retag docker_push
+
+# Create and push manifest lists
+MANIFEST_ARCHITECTURES=amd64,arm64 make -f Makefile.hopsworks docker_amend_manifest
+```
+
+### Single architecture
+
+```bash
+make -f Makefile.hopsworks docker_retag docker_push
+```
