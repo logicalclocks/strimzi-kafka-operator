@@ -45,7 +45,7 @@
         <dependency>
             <groupId>hops.io.kafka</groupId>
             <artifactId>hops-kafka-authorizer</artifactId>
-            <version>4.7.0-SNAPSHOT</version>
+            <version>5.1.0-SNAPSHOT</version>
             <scope>system</scope>
             <systemPath>/tmp/hops-kafka-authorizer.jar</systemPath>
         </dependency>

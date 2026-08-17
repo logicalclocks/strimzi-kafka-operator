@@ -44,7 +44,7 @@ COPY . .
 # Fail loudly if the download did not produce a jar, otherwise the Kafka image is
 # built with an empty/HTML file in ${KAFKA_HOME}/libs and the broker starts without
 # an authorizer.
-ARG AUTHORIZER_VERSION=4.7.0-SNAPSHOT
+ARG AUTHORIZER_VERSION=5.1.0-SNAPSHOT
 RUN curl -fsSL -o /tmp/hops-kafka-authorizer.jar \
       "https://repo.hops.works/master/hops-kafka-authorizer/${AUTHORIZER_VERSION}/hops-kafka-authorizer-${AUTHORIZER_VERSION}.jar" && \
     unzip -t /tmp/hops-kafka-authorizer.jar > /dev/null && \
