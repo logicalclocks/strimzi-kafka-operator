@@ -1,0 +1,121 @@
+# Makefile.hopsworks - Re-tag Strimzi images with Hopsworks version suffix
+#
+# This Makefile re-tags existing Strimzi images with a Hopsworks-specific version suffix
+# to track security fixes in base images without changing Strimzi code.
+#
+# Usage:
+#   make -f Makefile.hopsworks docker_retag       # Re-tag all images locally
+#   make -f Makefile.hopsworks docker_push        # Push re-tagged images to registry
+#   make -f Makefile.hopsworks all                # Re-tag and push
+
+TOPDIR=$(dir $(lastword $(MAKEFILE_LIST)))
+
+DOCKER_CMD         ?= docker
+DOCKER_REGISTRY    ?= docker.io
+DOCKER_ORG         ?= strimzi
+BUILD_TAG          ?= latest
+
+# Read versions from files
+RELEASE_VERSION    ?= $(shell cat $(TOPDIR)/release.version | tr -d '[:space:]')
+HOPSWORKS_VERSION  ?= $(shell cat $(TOPDIR)/hopsworks.version | tr -d '[:space:]')
+
+# Combined version tag: e.g., 0.45.1-h1
+HOPSWORKS_TAG      = $(RELEASE_VERSION)-$(HOPSWORKS_VERSION)
+
+# Get supported Kafka versions from kafka-versions.yaml
+KAFKA_VERSIONS     = $(shell yq eval '.[] | select(.supported == true) | .version' $(TOPDIR)/kafka-versions.yaml)
+
+# Simple images (without Kafka version suffix).
+# Keep in step with DOCKERDIRS in the root Makefile, minus docker-images/base (which is
+# only built and used locally) and docker-images/kafka-based (handled below, per Kafka
+# version). buildah was added upstream in the 1.x line.
+SIMPLE_IMAGES      = operator maven-builder kaniko-executor buildah
+
+# Source tag of the locally built per-Kafka-version images. Upstream commit 71184f02b
+# ("Align default build tag for all images") changed this from build-kafka-<version> to
+# $(BUILD_TAG)-kafka-<version> in docker-images/kafka-based/build.sh, so it must be
+# derived from BUILD_TAG rather than hardcoded.
+KAFKA_BUILD_TAG    = $(BUILD_TAG)
+
+.PHONY: all docker_retag docker_push docker_retag_simple docker_retag_kafka docker_push_simple docker_push_kafka
+
+all: docker_retag docker_push
+
+# Re-tag all images
+docker_retag: docker_retag_simple docker_retag_kafka
+
+# Push all re-tagged images
+docker_push: docker_push_simple docker_push_kafka
+
+# Re-tag simple images (operator, maven-builder, kaniko-executor, buildah).
+#
+# Every retag verifies the source image exists first. A silently missing source tag is
+# the dangerous failure here: `docker tag` on an absent image errors, but without an
+# explicit check a stale image left over from an earlier build would be retagged and
+# pushed instead, shipping a Kafka image with no hops-kafka-authorizer in it.
+docker_retag_simple:
+	@echo "Re-tagging simple images with Hopsworks version: $(HOPSWORKS_VERSION)"
+	@for image in $(SIMPLE_IMAGES); do \
+		src=strimzi/$$image:$(BUILD_TAG); \
+		dst=$(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG); \
+		if ! $(DOCKER_CMD) image inspect "$$src" > /dev/null 2>&1; then \
+			echo "ERROR: source image $$src not found. Run 'make docker_build' first, and check BUILD_TAG."; \
+			exit 1; \
+		fi; \
+		echo "Re-tagging $$src -> $$dst"; \
+		$(DOCKER_CMD) tag "$$src" "$$dst" || exit 1; \
+	done
+
+# Re-tag Kafka images for all supported Kafka versions
+docker_retag_kafka:
+	@echo "Re-tagging Kafka images with Hopsworks version: $(HOPSWORKS_VERSION)"
+	@if [ -z "$(KAFKA_VERSIONS)" ]; then \
+		echo "ERROR: no supported Kafka versions resolved from kafka-versions.yaml"; \
+		exit 1; \
+	fi
+	@for kafka_version in $(KAFKA_VERSIONS); do \
+		src=strimzi/kafka:$(KAFKA_BUILD_TAG)-kafka-$$kafka_version; \
+		dst=$(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version; \
+		if ! $(DOCKER_CMD) image inspect "$$src" > /dev/null 2>&1; then \
+			echo "ERROR: source image $$src not found. Run 'make docker_build' first, and check that"; \
+			echo "       KAFKA_BUILD_TAG matches BUILD_TAG in docker-images/kafka-based/build.sh."; \
+			exit 1; \
+		fi; \
+		echo "Re-tagging $$src -> $$dst"; \
+		$(DOCKER_CMD) tag "$$src" "$$dst" || exit 1; \
+	done
+
+# Push simple images
+docker_push_simple:
+	@echo "Pushing simple images with Hopsworks version: $(HOPSWORKS_VERSION)"
+	@for image in $(SIMPLE_IMAGES); do \
+		echo "Pushing $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)"; \
+		$(DOCKER_CMD) push $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG); \
+	done
+
+# Push Kafka images for all supported Kafka versions
+docker_push_kafka:
+	@echo "Pushing Kafka images with Hopsworks version: $(HOPSWORKS_VERSION)"
+	@for kafka_version in $(KAFKA_VERSIONS); do \
+		echo "Pushing $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version"; \
+		$(DOCKER_CMD) push $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version; \
+	done
+
+# Show what would be tagged (dry run)
+show:
+	@echo "Build Tag:   $(BUILD_TAG)"
+	@echo "Release Version:   $(RELEASE_VERSION)"
+	@echo "Hopsworks Version: $(HOPSWORKS_VERSION)"
+	@echo "Combined Tag:      $(HOPSWORKS_TAG)"
+	@echo "Docker Registry:   $(DOCKER_REGISTRY)"
+	@echo "Docker Org:        $(DOCKER_ORG)"
+	@echo ""
+	@echo "Simple images to re-tag:"
+	@for image in $(SIMPLE_IMAGES); do \
+		echo "  strimzi/$$image:$(BUILD_TAG) -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$$image:$(HOPSWORKS_TAG)"; \
+	done
+	@echo ""
+	@echo "Kafka images to re-tag:"
+	@for kafka_version in $(KAFKA_VERSIONS); do \
+		echo "  strimzi/kafka:$(KAFKA_BUILD_TAG)-kafka-$$kafka_version -> $(DOCKER_REGISTRY)/$(DOCKER_ORG)/kafka:$(HOPSWORKS_TAG)-kafka-$$kafka_version"; \
+	done

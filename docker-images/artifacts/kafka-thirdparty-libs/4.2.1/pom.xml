@@ -40,6 +40,19 @@
     </repositories>
 
     <dependencies>
+        <!--
+            Hopsworks: puts hops-kafka-authorizer on the Kafka broker classpath. The
+            artifacts build copies this pom's dependencies into
+            binaries/kafka-thirdparty-libs/<version>.zip, and the Kafka image unpacks that
+            into ${KAFKA_HOME}/libs/. The jar is fetched to /tmp by the root Dockerfile.
+        -->
+        <dependency>
+            <groupId>hops.io.kafka</groupId>
+            <artifactId>hops-kafka-authorizer</artifactId>
+            <version>4.7.0-SNAPSHOT</version>
+            <scope>system</scope>
+            <systemPath>/tmp/hops-kafka-authorizer.jar</systemPath>
+        </dependency>
         <!-- Support for the new JsonTemplateLayout as appender type -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
