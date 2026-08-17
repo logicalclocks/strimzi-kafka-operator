@@ -15,3 +15,17 @@ If you are running the Jenkins pipeline, consider disabling `PUSH_UPSTREAM_TAGGE
 `make -f Makefile.hopsworks docker_retag` will tag the images with the Hopsworks patch version
 
 `make -f Makefile.hopsworks docker_push` will push the images
+
+## The CRD image
+
+`crds:<release>-<hopsworks>` is the one image here that is **built** rather than re-tagged,
+because it has no upstream equivalent. It carries this checkout's
+`packaging/install/cluster-operator/*Crd*.yaml` plus a `kubectl`, and exists because Helm
+only applies a chart's `crds/` directory on install, never on upgrade — so hopsworks-helm
+refreshes the Strimzi CRDs from a pre-upgrade hook Job, which needs them in an image.
+
+Building it from this repo rather than from hopsworks-helm is deliberate: the CRDs are
+copied out of the same checkout that produces the operator image, so the two cannot drift.
+
+`make -f Makefile.hopsworks docker_build_crds` builds it, `docker_push_crds` pushes it, and
+both are wired into `docker_retag` / `docker_push` so `all` covers them.

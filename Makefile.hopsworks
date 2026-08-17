@@ -28,15 +28,34 @@ KAFKA_VERSIONS     = $(shell yq eval '.[] | select(.supported == true) | .versio
 # Simple images (without Kafka version suffix)
 SIMPLE_IMAGES      = operator maven-builder kaniko-executor
 
-.PHONY: all docker_retag docker_push docker_retag_simple docker_retag_kafka docker_push_simple docker_push_kafka
+# CRD carrier image consumed by hopsworks-helm's pre-upgrade CRD refresh hook. Built here
+# (not retagged from an upstream image) because it does not exist upstream - see
+# docker-images/hopsworks-crds/Dockerfile.
+CRDS_IMAGE         = crds
+
+.PHONY: all docker_retag docker_push docker_retag_simple docker_retag_kafka docker_push_simple docker_push_kafka docker_build_crds docker_push_crds
 
 all: docker_retag docker_push
 
-# Re-tag all images
-docker_retag: docker_retag_simple docker_retag_kafka
+# Re-tag all images. docker_build_crds is a build, not a retag, so it is a prerequisite
+# here rather than part of docker_retag_*.
+docker_retag: docker_build_crds docker_retag_simple docker_retag_kafka
 
 # Push all re-tagged images
-docker_push: docker_push_simple docker_push_kafka
+docker_push: docker_push_simple docker_push_kafka docker_push_crds
+
+# Build the CRD carrier image straight from this checkout's CRDs, so its contents cannot
+# drift from the operator version being released.
+docker_build_crds:
+	@echo "Building CRD image for Hopsworks version: $(HOPSWORKS_VERSION)"
+	$(DOCKER_CMD) build \
+		-f $(TOPDIR)docker-images/hopsworks-crds/Dockerfile \
+		-t $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(CRDS_IMAGE):$(HOPSWORKS_TAG) \
+		$(TOPDIR)
+
+docker_push_crds:
+	@echo "Pushing $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(CRDS_IMAGE):$(HOPSWORKS_TAG)"
+	$(DOCKER_CMD) push $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(CRDS_IMAGE):$(HOPSWORKS_TAG)
 
 # Re-tag simple images (operator, maven-builder, kaniko-executor)
 docker_retag_simple:
