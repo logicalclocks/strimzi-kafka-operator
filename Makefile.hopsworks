@@ -31,11 +31,15 @@ KAFKA_VERSIONS     = $(shell yq eval '.[] | select(.supported == true) | .versio
 # version). buildah was added upstream in the 1.x line.
 SIMPLE_IMAGES      = operator maven-builder kaniko-executor buildah
 
-# Source tag of the locally built per-Kafka-version images. Upstream commit 71184f02b
-# ("Align default build tag for all images") changed this from build-kafka-<version> to
-# $(BUILD_TAG)-kafka-<version> in docker-images/kafka-based/build.sh, so it must be
-# derived from BUILD_TAG rather than hardcoded.
-KAFKA_BUILD_TAG    = $(BUILD_TAG)
+# Prefix of the source tag for the locally built per-Kafka-version images, i.e. the
+# BUILD_TAG that docker-images/kafka-based/build.sh assigns. This is release-line
+# specific and hardcoded there, not derived from this file's BUILD_TAG: on this line
+# build.sh uses BUILD_TAG="latest-kafka-<version>", where earlier lines used
+# "build-kafka-<version>" (changed by upstream commit 71184f02b, "Align default build tag
+# for all images"). Check build.sh when rebasing onto a newer line - the retag target
+# below verifies the source image exists, so a mismatch fails loudly rather than quietly
+# pushing a stale image.
+KAFKA_BUILD_TAG    = latest
 
 # CRD carrier image consumed by hopsworks-helm's pre-upgrade CRD refresh hook. Built here
 # (not retagged from an upstream image) because it does not exist upstream - see
