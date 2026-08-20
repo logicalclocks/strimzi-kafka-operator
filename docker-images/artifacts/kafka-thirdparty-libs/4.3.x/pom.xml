@@ -136,6 +136,15 @@
                     <groupId>com.google.errorprone</groupId>
                     <artifactId>error_prone_annotations</artifactId>
                 </exclusion>
+                <!--
+                    Excluded as we end up with conflicting copies in the image: guava
+                    brings j2objc-annotations 3.1 in here, and hops-kafka-authorizer
+                    bundles the 2.8 copy that comes with the guava it shades.
+                -->
+                <exclusion>
+                    <groupId>com.google.j2objc</groupId>
+                    <artifactId>j2objc-annotations</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <!-- OAuth -->
