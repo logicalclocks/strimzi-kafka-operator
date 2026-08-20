@@ -38,7 +38,7 @@ function hops_kafka_authorizer {
     for version_lib in "${libs[@]}"
     do
         local pom="kafka-thirdparty-libs/${version_lib}/pom.xml"
-        local dependency version jar_path url
+        local dependency version jar_path jar_source
 
         # The version and the target path are read out of the pom, so they cannot drift
         # from what Maven is going to look for.
@@ -63,21 +63,45 @@ function hops_kafka_authorizer {
         fi
         fetched+=("${version} ${jar_path}")
 
-        url="${AUTHORIZER_BASE_URL}/${version}/hops-kafka-authorizer-${version}.jar"
-        echo "Fetching hops-kafka-authorizer ${version} from: $url"
-
-        if ! curl -fsSL ${CURL_ARGS} -o "$jar_path" "$url"
+        # An authorizer built locally (mvn clean install in the hops-kafka-authorizer repo)
+        # can be used instead of a published one, which is how unreleased authorizer
+        # changes get into an image:
+        #   AUTHORIZER_JAR=<repo>/target/hops-kafka-authorizer-<version>.jar make java_install
+        if [ -n "${AUTHORIZER_JAR:-}" ]
         then
-            >&2 echo "Could not download $url."
-            >&2 echo "The version comes from $pom - that version has to be published under \$AUTHORIZER_BASE_URL."
-            exit 1
+            jar_source="$AUTHORIZER_JAR"
+            echo "Using hops-kafka-authorizer from $jar_source instead of downloading ${version}"
+
+            if [ ! -f "$jar_source" ]
+            then
+                >&2 echo "AUTHORIZER_JAR=$jar_source is not a file."
+                exit 1
+            fi
+
+            # Tolerate AUTHORIZER_JAR already being the systemPath
+            if [ ! "$jar_source" -ef "$jar_path" ]
+            then
+                cp "$jar_source" "$jar_path"
+            fi
+        else
+            jar_source="${AUTHORIZER_BASE_URL}/${version}/hops-kafka-authorizer-${version}.jar"
+            echo "Fetching hops-kafka-authorizer ${version} from: $jar_source"
+
+            if ! curl -fsSL ${CURL_ARGS} -o "$jar_path" "$jar_source"
+            then
+                >&2 echo "Could not download $jar_source."
+                >&2 echo "The version comes from $pom - that version has to be published under \$AUTHORIZER_BASE_URL,"
+                >&2 echo "or built locally and passed as \$AUTHORIZER_JAR."
+                exit 1
+            fi
         fi
 
-        # A truncated download or an error page would otherwise be zipped into the image's
-        # third-party libs and the broker would come up without an authorizer.
+        # A truncated download, an error page or the wrong local jar would otherwise be
+        # zipped into the image's third-party libs and the broker would come up without an
+        # authorizer.
         if ! unzip -t "$jar_path" > /dev/null || ! unzip -l "$jar_path" | grep -q 'io/hops/kafka/HopsAclAuthorizer.class'
         then
-            >&2 echo "$jar_path is not a jar containing io.hops.kafka.HopsAclAuthorizer. Check $url."
+            >&2 echo "$jar_path is not a jar containing io.hops.kafka.HopsAclAuthorizer. Check $jar_source."
             exit 1
         fi
     done

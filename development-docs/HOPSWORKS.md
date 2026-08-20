@@ -8,6 +8,13 @@ If you want to deploy changes to the authorizer build it beforehand:
 
 https://github.com/logicalclocks/hops-kafka-authorizer/blob/master/README.md
 
+Then point this build at the jar it produced, otherwise the version declared in the
+third-party-libs poms is downloaded from `repo.hops.works` instead:
+
+```sh
+export AUTHORIZER_JAR=~/hops-kafka-authorizer/target/hops-kafka-authorizer-<version>.jar
+```
+
 ### Java
 
 Use Java 21 for deploying Strimzi — the 1.x line sets `maven.compiler.release` to 21.
@@ -59,6 +66,11 @@ out of those poms and fetches the jar from `repo.hops.works` (override the base 
 `AUTHORIZER_BASE_URL`) before `dependency:copy-dependencies` runs. That happens for every
 way into the build — `docker build` with the root [Dockerfile](../Dockerfile), CI running
 `make java_install` on the runner, and local `make` — so there is nothing to keep in sync.
+
+Set `AUTHORIZER_JAR` to a locally built jar to use that instead of downloading a published
+one; that is how unreleased authorizer changes get into an image. The jar is checked for
+`io.hops.kafka.HopsAclAuthorizer` either way, but nothing verifies that a local jar's
+version matches the one declared in the poms — that is on you.
 
 When Strimzi adds or drops a supported Kafka version, `kafka-versions.yaml` gains or
 loses an entry and a new `kafka-thirdparty-libs/<version>` directory appears. Add the
