@@ -22,6 +22,91 @@ function dependency_check {
     command -v yq >/dev/null 2>&1 || { >&2 echo "You need yq installed to build Strimzi. Refer to DEV_GUIDE.md for more information"; exit 1; }
 }
 
+# Hopsworks: hops-kafka-authorizer is declared as a system-scoped dependency in the
+# kafka-thirdparty-libs poms, which means Maven never fetches it - the jar has to already
+# exist at the declared systemPath when dependency:copy-dependencies runs. Fetching it here
+# covers every entry point into this build (the root Dockerfile, CI running
+# `make java_install` on the host, and local builds) instead of just one of them.
+AUTHORIZER_BASE_URL="${AUTHORIZER_BASE_URL:-https://repo.hops.works/master/hops-kafka-authorizer}"
+
+function hops_kafka_authorizer {
+    # This function comes from the tools/kafka-versions-tools.sh script and provides a list of third-party-libs-directories.
+    get_unique_kafka_third_party_libs
+
+    local fetched=()
+
+    for version_lib in "${libs[@]}"
+    do
+        local pom="kafka-thirdparty-libs/${version_lib}/pom.xml"
+        local dependency version jar_path jar_source
+
+        # The version and the target path are read out of the pom, so they cannot drift
+        # from what Maven is going to look for.
+        dependency=$(sed -n '/<artifactId>hops-kafka-authorizer<\/artifactId>/,/<\/dependency>/p' "$pom")
+        version=$(sed -n 's@.*<version>\(.*\)</version>.*@\1@p' <<< "$dependency")
+        jar_path=$(sed -n 's@.*<systemPath>\(.*\)</systemPath>.*@\1@p' <<< "$dependency")
+
+        # Strimzi adding a supported Kafka version adds a third-party-libs directory. Fail
+        # here rather than build a Kafka image with no authorizer in ${KAFKA_HOME}/libs,
+        # which brokers cannot start without.
+        if [ -z "$version" ] || [ -z "$jar_path" ]
+        then
+            >&2 echo "No hops-kafka-authorizer dependency with both a <version> and a <systemPath> found in $pom."
+            >&2 echo "Add it, otherwise the Kafka images for that version ship without an authorizer."
+            exit 1
+        fi
+
+        # The supported Kafka versions normally share a single authorizer jar
+        if [[ " ${fetched[*]} " == *" ${version} ${jar_path} "* ]]
+        then
+            continue
+        fi
+        fetched+=("${version} ${jar_path}")
+
+        # An authorizer built locally (mvn clean install in the hops-kafka-authorizer repo)
+        # can be used instead of a published one, which is how unreleased authorizer
+        # changes get into an image:
+        #   AUTHORIZER_JAR=<repo>/target/hops-kafka-authorizer-<version>.jar make java_install
+        if [ -n "${AUTHORIZER_JAR:-}" ]
+        then
+            jar_source="$AUTHORIZER_JAR"
+            echo "Using hops-kafka-authorizer from $jar_source instead of downloading ${version}"
+
+            if [ ! -f "$jar_source" ]
+            then
+                >&2 echo "AUTHORIZER_JAR=$jar_source is not a file."
+                exit 1
+            fi
+
+            # Tolerate AUTHORIZER_JAR already being the systemPath
+            if [ ! "$jar_source" -ef "$jar_path" ]
+            then
+                cp "$jar_source" "$jar_path"
+            fi
+        else
+            jar_source="${AUTHORIZER_BASE_URL}/${version}/hops-kafka-authorizer-${version}.jar"
+            echo "Fetching hops-kafka-authorizer ${version} from: $jar_source"
+
+            if ! curl -fsSL ${CURL_ARGS} -o "$jar_path" "$jar_source"
+            then
+                >&2 echo "Could not download $jar_source."
+                >&2 echo "The version comes from $pom - that version has to be published under \$AUTHORIZER_BASE_URL,"
+                >&2 echo "or built locally and passed as \$AUTHORIZER_JAR."
+                exit 1
+            fi
+        fi
+
+        # A truncated download, an error page or the wrong local jar would otherwise be
+        # zipped into the image's third-party libs and the broker would come up without an
+        # authorizer.
+        if ! unzip -t "$jar_path" > /dev/null || ! unzip -l "$jar_path" | grep -q 'io/hops/kafka/HopsAclAuthorizer.class'
+        then
+            >&2 echo "$jar_path is not a jar containing io.hops.kafka.HopsAclAuthorizer. Check $jar_source."
+            exit 1
+        fi
+    done
+}
+
 function third_party_libs {
     # This function comes from the tools/kafka-versions-tools.sh script and provides a list of third-party-libs-directories.
     get_unique_kafka_third_party_libs
@@ -162,6 +247,7 @@ function download_kafka_binaries_from_cdn {
 }
 
 dependency_check
+hops_kafka_authorizer
 third_party_libs
 cruise_control
 fetch_and_unpack_kafka_binaries

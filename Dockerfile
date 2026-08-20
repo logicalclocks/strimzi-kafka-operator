@@ -36,20 +36,6 @@ RUN curl -fsSL -o helm.tar.gz https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.g
 WORKDIR /app
 COPY . .
 
-# Download Kafka authorizer.
-#
-# Keep AUTHORIZER_VERSION in step with the <version> of the hops-kafka-authorizer
-# dependency in docker-images/artifacts/kafka-thirdparty-libs/*/pom.xml — the pom
-# resolves this jar from /tmp by systemPath, so a mismatch is not caught by Maven.
-# Fail loudly if the download did not produce a jar, otherwise the Kafka image is
-# built with an empty/HTML file in ${KAFKA_HOME}/libs and the broker starts without
-# an authorizer.
-ARG AUTHORIZER_VERSION=5.1.0-SNAPSHOT
-RUN curl -fsSL -o /tmp/hops-kafka-authorizer.jar \
-      "https://repo.hops.works/master/hops-kafka-authorizer/${AUTHORIZER_VERSION}/hops-kafka-authorizer-${AUTHORIZER_VERSION}.jar" && \
-    unzip -t /tmp/hops-kafka-authorizer.jar > /dev/null && \
-    unzip -l /tmp/hops-kafka-authorizer.jar | grep -q 'io/hops/kafka/HopsAclAuthorizer.class'
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2: Install strimzi-kafka-operator
 # ─────────────────────────────────────────────────────────────────────────────
@@ -59,6 +45,9 @@ WORKDIR /app
 
 RUN mvn clean install -DskipTests
 
+# Fetches the hops-kafka-authorizer jar (see docker-images/artifacts/build.sh, which reads
+# its version out of the kafka-thirdparty-libs poms) and puts it in the Kafka image's
+# third-party libs. Set AUTHORIZER_BASE_URL if it has to come from somewhere else.
 RUN make MVN_ARGS='-DskipTests' java_install
 
 # ─────────────────────────────────────────────────────────────────────────────
