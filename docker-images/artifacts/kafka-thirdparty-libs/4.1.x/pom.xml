@@ -56,7 +56,9 @@
             Hopsworks: puts hops-kafka-authorizer on the Kafka broker classpath. The
             artifacts build copies this pom's dependencies into
             binaries/kafka-thirdparty-libs/<version>.zip, and the Kafka image unpacks that
-            into ${KAFKA_HOME}/libs/. The jar is fetched to /tmp by the root Dockerfile.
+            into ${KAFKA_HOME}/libs/. Maven does not fetch a system-scoped dependency, so
+            docker-images/artifacts/build.sh downloads the jar to the systemPath below -
+            reading the version and the path from here, which is where both are declared.
         -->
         <dependency>
             <groupId>hops.io.kafka</groupId>

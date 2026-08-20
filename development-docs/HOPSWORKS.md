@@ -47,19 +47,23 @@ Or in existing cluster update `strimzi-cluster-operator` deployment.
 
 ## Authorizer version
 
-The authorizer version is declared in **two** places and both must agree — the
-third-party-libs poms resolve the jar from `/tmp` by `systemPath`, so Maven will not
-catch a mismatch:
+The authorizer version is declared once, as the `hops-kafka-authorizer` `<version>` in
+every supported Kafka version's third-party-libs pom:
 
-1. `AUTHORIZER_VERSION` in the root [Dockerfile](../Dockerfile) (what gets downloaded).
-2. The `hops-kafka-authorizer` `<version>` in every supported Kafka version's pom:
-   * [4.1.x](../docker-images/artifacts/kafka-thirdparty-libs/4.1.x/pom.xml)
-   * [4.2.x](../docker-images/artifacts/kafka-thirdparty-libs/4.2.x/pom.xml)
+* [4.1.x](../docker-images/artifacts/kafka-thirdparty-libs/4.1.x/pom.xml)
+* [4.2.x](../docker-images/artifacts/kafka-thirdparty-libs/4.2.x/pom.xml)
+
+The dependency is `system`-scoped, so Maven never downloads it. Instead
+[build.sh](../docker-images/artifacts/build.sh) reads the version and the `systemPath`
+out of those poms and fetches the jar from `repo.hops.works` (override the base URL with
+`AUTHORIZER_BASE_URL`) before `dependency:copy-dependencies` runs. That happens for every
+way into the build — `docker build` with the root [Dockerfile](../Dockerfile), CI running
+`make java_install` on the runner, and local `make` — so there is nothing to keep in sync.
 
 When Strimzi adds or drops a supported Kafka version, `kafka-versions.yaml` gains or
 loses an entry and a new `kafka-thirdparty-libs/<version>` directory appears. Add the
-authorizer dependency to it, or the Kafka image for that version ships without an
-authorizer and every broker fails to start.
+authorizer dependency to it — the build fails with a message pointing at the pom if you
+do not, rather than shipping a Kafka image whose brokers cannot start.
 
 The authorizer must be built against a Kafka version in Strimzi's supported set, and it
 must shade in guava — Strimzi stopped shipping guava in the Kafka image's third-party
