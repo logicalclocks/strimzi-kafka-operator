@@ -124,17 +124,41 @@
         <fabric8.openshift-client.version>7.2.0</fabric8.openshift-client.version>
         <fabric8.kubernetes-model.version>7.2.0</fabric8.kubernetes-model.version>
         <fabric8.zjsonpatch.version>0.3.0</fabric8.zjsonpatch.version>
-        <fasterxml.jackson-core.version>2.18.6</fasterxml.jackson-core.version>
-        <fasterxml.jackson-databind.version>2.18.6</fasterxml.jackson-databind.version>
-        <fasterxml.jackson-dataformat.version>2.18.6</fasterxml.jackson-dataformat.version>
-        <fasterxml.jackson-annotations.version>2.18.6</fasterxml.jackson-annotations.version>
-        <fasterxml.jackson-datatype.version>2.18.6</fasterxml.jackson-datatype.version>
-        <fasterxml.jackson-jaxrs.version>2.18.6</fasterxml.jackson-jaxrs.version>
+        <!--
+        Hopsworks CVE bumps on top of upstream 0.45.2. Each is a patch-level move on a
+        property upstream already manages, verified with `mvn dependency:tree -pl
+        cluster-operator -am` to reach every shipped artifact:
+          jackson    2.18.6 -> 2.18.8   CVE-2026-54512, -54513, GHSA-r7wm-3cxj-wff9
+          zookeeper  3.8.5  -> 3.8.6    CVE-2026-24281, CVE-2026-24308
+          netty      4.1.130 -> 4.1.136 CVE-2026-59901, -55831, -55833, -56745, -56819
+        Two are deliberately NOT bumped, and both CVEs are accepted:
+
+        micrometer (CVE-2026-40984, fixed in 1.15.12 / 1.16.6). Micrometer 1.13 replaced
+        io.micrometer.prometheus.PrometheusMeterRegistry - backed by the Prometheus Java
+        simpleclient 0.x - with io.micrometer.prometheusmetrics on the 1.x client, so 1.15
+        does not compile against operator-common's HealthCheckAndMetricsServer. The fix
+        needs a source port that changes the library behind the operator's /metrics
+        endpoint, which is more than a CVE rebuild should carry. No 1.12.x fix exists; the
+        advisory patches only the supported 1.15 and 1.16 lines.
+
+        jetty is deliberately NOT bumped. CVE-2026-2332 needs 9.4.60 and CVE-2026-10050
+        needs 9.4.63, but the 9.4.x line stops at 9.4.58.v20250814 on Maven Central - the
+        higher numbers are Webtide's commercial builds for the EOL branch. Moving to 9.4.58
+        fixes neither and desyncs the image: only jetty-http/io/server/util are managed
+        here, so jetty-client/continuation/security/servlet/servlets/util-ajax would stay
+        at 9.4.57 and the image would ship two Jetty versions. Both CVEs are accepted.
+        -->
+        <fasterxml.jackson-core.version>2.18.8</fasterxml.jackson-core.version>
+        <fasterxml.jackson-databind.version>2.18.8</fasterxml.jackson-databind.version>
+        <fasterxml.jackson-dataformat.version>2.18.8</fasterxml.jackson-dataformat.version>
+        <fasterxml.jackson-annotations.version>2.18.8</fasterxml.jackson-annotations.version>
+        <fasterxml.jackson-datatype.version>2.18.8</fasterxml.jackson-datatype.version>
+        <fasterxml.jackson-jaxrs.version>2.18.8</fasterxml.jackson-jaxrs.version>
         <vertx.version>4.5.24</vertx.version>
         <vertx-junit5.version>4.5.24</vertx-junit5.version>
         <kafka.version>3.9.2</kafka.version>
         <yammer-metrics.version>2.2.0</yammer-metrics.version>
-        <zookeeper.version>3.8.5</zookeeper.version>
+        <zookeeper.version>3.8.6</zookeeper.version>
         <snappy.version>1.1.10.5</snappy.version>
         <slf4j.version>2.0.17</slf4j.version>
         <log4j.version>2.25.3</log4j.version>
@@ -145,7 +169,7 @@
         <javax-servlet.version>3.1.0</javax-servlet.version>
         <strimzi-oauth.version>0.15.1</strimzi-oauth.version>
         <nimbus-jose-jwt.version>10.0.2</nimbus-jose-jwt.version>
-        <netty.version>4.1.130.Final</netty.version>
+        <netty.version>4.1.136.Final</netty.version>
         <micrometer.version>1.12.3</micrometer.version>
         <jayway-jsonpath.version>2.9.0</jayway-jsonpath.version>
         <jsonsmart.version>2.5.2</jsonsmart.version>
